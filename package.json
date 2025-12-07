@@ -97,6 +97,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@cfworker/json-schema": "^4.1.1",
     "@modelcontextprotocol/inspector": "github:modelcontextprotocol/inspector",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
