@@ -1,11 +1,11 @@
 {
-  "name": "vscode-mcp-server",
+  "name": "vscode-abl-mcp",
   "icon": "media/logo.png",
-  "displayName": "vscode-mcp-server",
-  "description": "VS Code as a MCP server",
+  "displayName": "vscode-abl-mcp",
+  "description": "VSCode ABL as a MCP server",
   "version": "0.3.1",
-  "repository": "https://github.com/juehang/vscode-mcp-server",
-  "publisher": "JuehangQin",
+  "repository": "https://github.com/cverbiest/vscode-abl-mcp",
+  "publisher": "Carl Verbiest",
   "license": "MIT",
   "engines": {
     "vscode": "^1.99.0"
@@ -21,31 +21,32 @@
     "configuration": {
       "title": "MCP Server",
       "properties": {
-        "vscode-mcp-server.port": {
+        "vscode-abl-mcp.port": {
           "type": "number",
           "default": 3000,
           "minimum": 1024,
           "maximum": 65535,
           "description": "The port number for the MCP server"
         },
-        "vscode-mcp-server.host": {
+        "vscode-abl-mcp.host": {
           "type": "string",
           "default": "127.0.0.1",
           "description": "Host address for the MCP server"
         },
-        "vscode-mcp-server.defaultEnabled": {
+        "vscode-abl-mcp.defaultEnabled": {
           "type": "boolean",
           "default": false,
           "description": "Whether the MCP server should be enabled by default on VS Code startup"
         },
-        "vscode-mcp-server.enabledTools": {
+        "vscode-abl-mcp.enabledTools": {
           "type": "object",
           "default": {
             "file": true,
             "edit": true,
-            "shell": true,
+            "shell": false,
             "diagnostics": true,
-            "symbol": true
+            "symbol": true,
+            "abl": true
           },
           "properties": {
             "file": {
@@ -67,6 +68,10 @@
             "symbol": {
               "type": "boolean",
               "description": "Enable code symbol and structure analysis tools"
+            },
+            "abl": {
+              "type": "boolean",
+              "description": "Enable ABL tools"
             }
           },
           "description": "Configure which MCP tools are enabled"
@@ -75,16 +80,20 @@
     },
     "commands": [
       {
-        "command": "vscode-mcp-server.helloWorld",
+        "command": "vscode-abl-mcp.helloWorld",
         "title": "Hello World"
       },
       {
-        "command": "vscode-mcp-server.showServerInfo",
+        "command": "vscode-abl-mcp.showServerInfo",
         "title": "Show MCP Server Information"
       },
       {
-        "command": "vscode-mcp-server.toggleServer",
+        "command": "vscode-abl-mcp.toggleServer",
         "title": "Toggle MCP Server"
+      },
+      {
+        "command": "vscode-abl-mcp.callCompileBuffer",
+        "title": "Test: Call abl.compileBuffer"
       }
     ]
   },
