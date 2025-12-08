@@ -9,6 +9,7 @@ import { registerEditTools } from "./tools/edit-tools";
 import { registerShellTools } from "./tools/shell-tools";
 import { registerDiagnosticsTools } from "./tools/diagnostics-tools";
 import { registerSymbolTools } from "./tools/symbol-tools";
+import { registerAblTools } from "./tools/abl";
 import { logger } from "./utils/logger";
 
 export interface ToolConfiguration {
@@ -17,6 +18,7 @@ export interface ToolConfiguration {
   shell: boolean;
   diagnostics: boolean;
   symbol: boolean;
+  abl: boolean;
 }
 
 export class MCPServer {
@@ -49,6 +51,7 @@ export class MCPServer {
       shell: true,
       diagnostics: true,
       symbol: true,
+      abl: true,
     };
     this.app = express();
     this.app.use(express.json());
@@ -126,6 +129,14 @@ export class MCPServer {
         logger.info("MCP symbol tools registered successfully");
       } else {
         logger.info("MCP symbol tools disabled by configuration");
+      }
+
+      // Register ABL tools if enabled
+      if (this.toolConfig.abl) {
+        registerAblTools(this.server);
+        logger.info("MCP ABL tools registered successfully");
+      } else {
+        logger.info("MCP ABL tools disabled by configuration");
       }
     } else {
       logger.warn("File listing callback not set during tools setup");

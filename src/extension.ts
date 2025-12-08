@@ -30,6 +30,7 @@ function getToolConfiguration(): ToolConfiguration {
     shell: enabledTools.shell ?? false,
     diagnostics: enabledTools.diagnostics ?? true,
     symbol: enabledTools.symbol ?? true,
+    abl: enabledTools.abl ?? true,
   };
 }
 
