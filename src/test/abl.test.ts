@@ -146,8 +146,9 @@ suite("ABL Bridge Tools Test Suite", () => {
     assert.match(result.content[0].text, /not installed/);
   });
 
-  test("Returns an error when the LM tool is missing (outdated ABL extension)", async () => {
+  test("Returns a diagnostic error when tool invocation fails (outdated ABL extension)", async () => {
     fakeVscode.lm.tools = [];
+    invokeToolStub.rejects(new Error("Tool abl_compile not found"));
 
     const result = await tools
       .get("compile_abl")!
@@ -155,5 +156,6 @@ suite("ABL Bridge Tools Test Suite", () => {
 
     assert.strictEqual(result.isError, true);
     assert.match(result.content[0].text, /1\.33\.7/);
+    assert.match(result.content[0].text, /Tool abl_compile not found/);
   });
 });

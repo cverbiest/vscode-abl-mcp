@@ -52,27 +52,42 @@ async function invokeAblLmTool(
   }
   if (!ablExtension.isActive) {
     logger.info(`[invokeAblLmTool] Activating ${ABL_EXTENSION_ID}`);
-    await ablExtension.activate();
+    try {
+      await ablExtension.activate();
+    } catch (error) {
+      throw new Error(
+        `The OpenEdge ABL extension (${ABL_EXTENSION_ID}) failed to activate: ` +
+          `${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
-  const tool = vscode.lm.tools.find((t) => t.name === toolName);
-  if (!tool) {
-    throw new Error(
-      `Language model tool "${toolName}" is not available. ` +
-        `Update the OpenEdge ABL extension (${ABL_EXTENSION_ID}) to version 1.33.7 or later ` +
-        `(1.33.9+ for abl_check_syntax).`
-    );
-  }
-
+  // Do not pre-check vscode.lm.tools: its listing can be filtered and may
+  // omit tools that are perfectly invocable by name. Invoke directly and
+  // diagnose on failure.
   logger.info(
     `[invokeAblLmTool] Invoking ${toolName} with input: ${JSON.stringify(
       input
     )}`
   );
-  const result = await vscode.lm.invokeTool(toolName, {
-    input,
-    toolInvocationToken: undefined,
-  });
+  let result: vscode.LanguageModelToolResult;
+  try {
+    result = await vscode.lm.invokeTool(toolName, {
+      input,
+      toolInvocationToken: undefined,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const ablVersion = ablExtension.packageJSON?.version ?? "unknown";
+    const registered =
+      vscode.lm.tools.map((t) => t.name).join(", ") || "(none)";
+    throw new Error(
+      `Invoking language model tool "${toolName}" failed: ${message}. ` +
+        `LM tools require ${ABL_EXTENSION_ID} 1.33.7+ (1.33.9+ for abl_check_syntax). ` +
+        `Detected version: ${ablVersion} (active: ${ablExtension.isActive}). ` +
+        `Tools listed in vscode.lm.tools: ${registered}`
+    );
+  }
 
   const text = result.content
     .filter(
