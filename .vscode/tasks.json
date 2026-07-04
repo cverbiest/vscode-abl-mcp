@@ -4,8 +4,11 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "watch-all",
-			"dependsOn": ["npm: watch", "npm: watch:bundle"],
+			// One-shot build used by F5: bundle to dist/ then type-check
+			"label": "build",
+			"type": "shell",
+			"command": "npm run bundle:dev && npm run compile",
+			"problemMatcher": ["$tsc"],
 			"group": {
 				"kind": "build",
 				"isDefault": true
@@ -15,27 +18,6 @@
 			"type": "npm",
 			"script": "watch",
 			"problemMatcher": "$tsc-watch",
-			"isBackground": true,
-			"presentation": {
-				"reveal": "never"
-			}
-		},
-		{
-			"type": "npm",
-			"script": "watch:bundle",
-			"problemMatcher": {
-				"owner": "esbuild",
-				"pattern": {
-					"regexp": "^(?:[✘▲] \\[(ERROR|WARNING)\\] )(.*)$",
-					"severity": 1,
-					"message": 2
-				},
-				"background": {
-					"activeOnStart": true,
-					"beginsPattern": "\\[watch\\] build started",
-					"endsPattern": "\\[watch\\] build finished"
-				}
-			},
 			"isBackground": true,
 			"presentation": {
 				"reveal": "never"
