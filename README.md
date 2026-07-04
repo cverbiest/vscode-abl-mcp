@@ -19,7 +19,7 @@ https://github.com/user-attachments/assets/20b87dfb-fc39-4710-a910-b9481dde1e90
 
 ## Installation
 
-1. Install the extension from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=JuehangQin.vscode-abl-mcp) or clone this repository and run `npm install` and `npm run compile` to build it.
+1. Install the extension from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=cverbiest.vscode-abl-mcp) or clone this repository and run `npm install` and `npm run compile` to build it.
 
 ## Claude Desktop Configuration
 

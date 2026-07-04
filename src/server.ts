@@ -56,7 +56,7 @@ export class MCPServer {
     this.app = express();
     this.app.use(express.json());
 
-    // Initialize MCP Server
+    // Initialize Vscode ABL MCP
     this.server = new McpServer(
       {
         name: "vscode-abl-mcp",
@@ -194,7 +194,9 @@ export class MCPServer {
 
     // Handle unsupported methods
     this.app.get("/mcp", async (req, res) => {
-      logger.info("Received GET MCP request");
+      logger.info(
+        `Received GET MCP request from ${req.ip}: ${req.method} ${req.url}`
+      );
       res.writeHead(405).end(
         JSON.stringify({
           jsonrpc: "2.0",
@@ -208,7 +210,9 @@ export class MCPServer {
     });
 
     this.app.delete("/mcp", async (req, res) => {
-      logger.info("Received DELETE MCP request");
+      logger.info(
+        `Received DELETE MCP request from ${req.ip}: ${req.method} ${req.url}`
+      );
       res.writeHead(405).end(
         JSON.stringify({
           jsonrpc: "2.0",
@@ -249,7 +253,7 @@ export class MCPServer {
 
   public async start(): Promise<void> {
     try {
-      logger.info("[MCPServer.start] Starting MCP server");
+      logger.info("[MCPServer.start] Starting Vscode ABL MCP");
       const startTime = Date.now();
 
       // Connect transport before starting server
@@ -272,7 +276,7 @@ export class MCPServer {
           logger.info(
             `[MCPServer.start] HTTP Server started (took ${httpStartTime}ms)`
           );
-          logger.info(`MCP Server listening on ${this.host}:${this.port}`);
+          logger.info(`Vscode ABL MCP listening on ${this.host}:${this.port}`);
 
           const totalTime = Date.now() - startTime;
           logger.info(
@@ -284,7 +288,7 @@ export class MCPServer {
       });
     } catch (error) {
       logger.error(
-        `[MCPServer.start] Failed to start MCP Server: ${
+        `[MCPServer.start] Failed to start Vscode ABL MCP: ${
           error instanceof Error ? error.message : String(error)
         }`
       );
@@ -343,17 +347,17 @@ export class MCPServer {
         `[MCPServer.stop] Transport closed (took ${transportCloseTime}ms)`
       );
 
-      logger.info("[MCPServer.stop] Closing MCP server");
+      logger.info("[MCPServer.stop] Closing Vscode ABL MCP");
       const serverCloseStart = Date.now();
       await this.server.close();
       const serverCloseTime = Date.now() - serverCloseStart;
       logger.info(
-        `[MCPServer.stop] MCP server closed (took ${serverCloseTime}ms)`
+        `[MCPServer.stop] Vscode ABL MCP closed (took ${serverCloseTime}ms)`
       );
 
       const totalStopTime = Date.now() - stopStartTime;
       logger.info(
-        `[MCPServer.stop] MCP Server shutdown complete (total: ${totalStopTime}ms)`
+        `[MCPServer.stop] Vscode ABL MCP shutdown complete (total: ${totalStopTime}ms)`
       );
     } catch (error) {
       logger.error(

@@ -70,12 +70,12 @@ function updateStatusBar(port: number) {
   }
 
   if (serverEnabled) {
-    statusBarItem.text = `$(server) MCP Server: ${port}`;
-    statusBarItem.tooltip = `MCP Server running at localhost:${port} (Click to toggle)`;
+    statusBarItem.text = `$(server) Vscode ABL MCP: ${port}`;
+    statusBarItem.tooltip = `Vscode ABL MCP running at localhost:${port} (Click to toggle)`;
     statusBarItem.backgroundColor = undefined;
   } else {
-    statusBarItem.text = `$(server) MCP Server: Off`;
-    statusBarItem.tooltip = `MCP Server is disabled (Click to toggle)`;
+    statusBarItem.text = `$(server) Vscode ABL MCP: Off`;
+    statusBarItem.tooltip = `Vscode ABL MCP is disabled (Click to toggle)`;
     // Use a subtle color to indicate disabled state
     statusBarItem.backgroundColor = new vscode.ThemeColor(
       "statusBarItem.warningBackground"
@@ -107,7 +107,7 @@ async function toggleServerState(
   if (serverEnabled) {
     // Start the server if it was disabled
     if (!mcpServer) {
-      logger.info(`[toggleServerState] Creating MCP server instance`);
+      logger.info(`[toggleServerState] Creating Vscode ABL MCP instance`);
       const terminal = getExtensionTerminal(context);
       const toolConfig = getToolConfiguration();
       mcpServer = new MCPServer(port, host, terminal, toolConfig);
@@ -140,7 +140,7 @@ async function toggleServerState(
       );
 
       vscode.window.showInformationMessage(
-        `MCP Server enabled and running at http://localhost:${port}/mcp`
+        `Vscode ABL MCP enabled and running at http://localhost:${port}/mcp`
       );
     }
   } else {
@@ -150,7 +150,7 @@ async function toggleServerState(
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: "Stopping MCP Server",
+          title: "Stopping Vscode ABL MCP",
           cancellable: false,
         },
         async (progress) => {
@@ -173,7 +173,7 @@ async function toggleServerState(
         }
       );
 
-      vscode.window.showInformationMessage("MCP Server has been disabled");
+      vscode.window.showInformationMessage("Vscode ABL MCP has been disabled");
     }
   }
 
@@ -208,7 +208,7 @@ export async function activate(context: vscode.ExtensionContext) {
       // Create the shared terminal
       const terminal = getExtensionTerminal(context);
 
-      // Initialize MCP server with the configured port, terminal, and tool configuration
+      // Initialize Vscode ABL MCP with the configured port, terminal, and tool configuration
       const toolConfig = getToolConfiguration();
       mcpServer = new MCPServer(port, host, terminal, toolConfig);
 
@@ -232,9 +232,9 @@ export async function activate(context: vscode.ExtensionContext) {
       mcpServer.setupTools();
 
       await mcpServer.start();
-      logger.info("MCP Server started successfully");
+      logger.info("Vscode ABL MCP started successfully");
     } else {
-      logger.info("MCP Server is disabled by default");
+      logger.info("Vscode ABL MCP is disabled by default");
     }
 
     // Update status bar after server state is determined
@@ -251,11 +251,11 @@ export async function activate(context: vscode.ExtensionContext) {
       () => {
         if (serverEnabled) {
           vscode.window.showInformationMessage(
-            `MCP Server is running at http://localhost:${port}/mcp`
+            `Vscode ABL MCP is running at http://localhost:${port}/mcp`
           );
         } else {
           vscode.window.showInformationMessage(
-            "MCP Server is currently disabled. Click on the status bar item to enable it."
+            "Vscode ABL MCP is currently disabled. Click on the status bar item to enable it."
           );
         }
       }
@@ -305,7 +305,7 @@ export async function activate(context: vscode.ExtensionContext) {
             await mcpServer.start();
 
             vscode.window.showInformationMessage(
-              "MCP Server restarted with updated tool configuration"
+              "Vscode ABL MCP restarted with updated tool configuration"
             );
           }
         }
@@ -323,12 +323,12 @@ export async function activate(context: vscode.ExtensionContext) {
     );
   } catch (error) {
     logger.error(
-      `Failed to start MCP Server: ${
+      `Failed to start Vscode ABL MCP: ${
         error instanceof Error ? error.message : "Unknown error"
       }`
     );
     vscode.window.showErrorMessage(
-      `Failed to start MCP Server: ${
+      `Failed to start Vscode ABL MCP: ${
         error instanceof Error ? error.message : "Unknown error"
       }`
     );
@@ -352,12 +352,12 @@ export async function deactivate() {
   }
 
   try {
-    logger.info("Stopping MCP Server during extension deactivation");
+    logger.info("Stopping Vscode ABL MCP during extension deactivation");
     await mcpServer.stop();
-    logger.info("MCP Server stopped successfully");
+    logger.info("Vscode ABL MCP stopped successfully");
   } catch (error) {
     logger.error(
-      `Error stopping MCP Server: ${
+      `Error stopping Vscode ABL MCP: ${
         error instanceof Error ? error.message : String(error)
       }`
     );

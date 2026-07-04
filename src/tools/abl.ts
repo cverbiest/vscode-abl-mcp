@@ -302,12 +302,12 @@ export function registerAblTools(server: McpServer): void {
     "compile_buffer",
     `Compiles the currently active ABL buffer using the vscode-abl extension's compile command.
 
-    This tool executes the abl.compileBuffer command and returns compilation results including any errors, warnings, or other diagnostics.
-
-    WHEN TO USE: After editing ABL files to check for compilation errors.
     NOTE: This compiles the currently active editor buffer. Make sure the ABL file you want to compile is open and active.
     Returns: Compilation status and detailed diagnostics if any issues are found.`,
     {},
+    // This tool executes the abl.compileBuffer command and returns compilation results including any errors, warnings, or other diagnostics.
+    // WHEN TO USE: After editing ABL files to check for compilation errors.
+
     async (): Promise<CallToolResult> => {
       logger.info("[compile_buffer] Tool called");
 
