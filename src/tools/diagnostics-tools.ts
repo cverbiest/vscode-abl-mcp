@@ -161,20 +161,22 @@ function formatDiagnostics(
  */
 export function registerDiagnosticsTools(server: McpServer): void {
     // Add get_diagnostics tool
-    server.tool(
+    server.registerTool(
         'get_diagnostics_code',
-        `CRITICAL: Run this after EVERY series of code changes to check for errors before completing tasks.
+        {
+            description: `CRITICAL: Run this after EVERY series of code changes to check for errors before completing tasks.
 
         Analyzes code for warnings and errors using VS Code's integrated linters.
 
         WHEN TO USE: After edits, before task completion, debugging build issues.
         Scope: Single file (faster) or entire workspace (comprehensive).
         Severities: 0=Error, 1=Warning, 2=Info, 3=Hint. Defaults to errors and warnings only.`,
-        {
+            inputSchema: {
             path: z.string().optional().default('').describe('Optional file path to check. If not provided, checks the entire workspace. The file path must be a file, not a directory.'),
             severities: z.array(z.number()).optional().default([0, 1]).describe('Array of severity levels to include (0=Error, 1=Warning, 2=Information, 3=Hint)'),
             format: z.enum(['text', 'json']).optional().default('text').describe('Output format'),
             includeSource: z.boolean().optional().default(true).describe('Whether to include the diagnostic source to identify which linter/extension flagged each issue')
+        }
         },
         async ({ path, severities = [0, 1], format = 'text', includeSource = true }): Promise<CallToolResult> => {
             console.log(`[get_diagnostics] Tool called with path=${path || 'all'}, severities=${severities.join(',')}, format=${format}`);

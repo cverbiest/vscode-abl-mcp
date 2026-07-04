@@ -25,6 +25,7 @@ suite("Extension Test Suite", () => {
       start: sinon.stub().resolves(),
       stop: sinon.stub().resolves(),
       setFileListingCallback: sinon.spy(),
+      setupTools: sinon.spy(),
     };
 
     // Mock constructor for MCPServer
@@ -49,10 +50,11 @@ suite("Extension Test Suite", () => {
       .stub(vscode.window, "createStatusBarItem")
       .returns(statusBarItem);
 
-    // Mock configuration
-    workspaceConfig = {
-      get: sinon.stub().withArgs("port").returns(4321),
-    };
+    // Mock configuration - server enabled by default so activation starts it
+    const configGet = sinon.stub();
+    configGet.withArgs("port").returns(4321);
+    configGet.withArgs("defaultEnabled").returns(true);
+    workspaceConfig = { get: configGet };
     getConfigurationStub = sinon
       .stub(vscode.workspace, "getConfiguration")
       .returns(workspaceConfig);
@@ -118,7 +120,7 @@ suite("Extension Test Suite", () => {
     // Check the status bar attributes
     assert.strictEqual(
       statusBarItem.command,
-      "vscode-abl-mcp.showServerInfo",
+      "vscode-abl-mcp.toggleServer",
       "Status bar command not set correctly"
     );
     assert.strictEqual(statusBarItem.show.called, true, "Status bar not shown");

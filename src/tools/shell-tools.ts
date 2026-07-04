@@ -94,19 +94,21 @@ export async function executeShellCommand(
  */
 export function registerShellTools(server: McpServer, terminal?: vscode.Terminal): void {
     // Add execute_shell_command tool
-    server.tool(
+    server.registerTool(
         'execute_shell_command_code',
-        `Executes shell commands in VS Code integrated terminal.
+        {
+            description: `Executes shell commands in VS Code integrated terminal.
 
         WHEN TO USE: Running CLI commands, builds, git operations, npm/pip installs.
         
         Working directory: Use cwd to run commands in specific directories. Defaults to workspace root. If you get unexpected results, ensure the cwd is correct.
 
         Timeout: Commands must complete within specified time (default 10s) or the tool will return a timeout error, but the command may still be running in the terminal.`,
-        {
+            inputSchema: {
             command: z.string().describe('The shell command to execute'),
             cwd: z.string().optional().default('.').describe('Optional working directory for the command'),
             timeout: z.number().optional().default(10000).describe('Command timeout in milliseconds (default: 10000)')
+        }
         },
         async ({ command, cwd, timeout = 10000 }): Promise<CallToolResult> => {
             try {

@@ -4,16 +4,41 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "watch-all",
+			"dependsOn": ["npm: watch", "npm: watch:bundle"],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
 			"type": "npm",
 			"script": "watch",
 			"problemMatcher": "$tsc-watch",
 			"isBackground": true,
 			"presentation": {
 				"reveal": "never"
+			}
+		},
+		{
+			"type": "npm",
+			"script": "watch:bundle",
+			"problemMatcher": {
+				"owner": "esbuild",
+				"pattern": {
+					"regexp": "^(?:[✘▲] \\[(ERROR|WARNING)\\] )(.*)$",
+					"severity": 1,
+					"message": 2
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "\\[watch\\] build started",
+					"endsPattern": "\\[watch\\] build finished"
+				}
 			},
-			"group": {
-				"kind": "build",
-				"isDefault": true
+			"isBackground": true,
+			"presentation": {
+				"reveal": "never"
 			}
 		}
 	]

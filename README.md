@@ -1,122 +1,69 @@
 # VS Code ABL MCP Server
 
-## Attributions
+A Visual Studio Code extension that runs an MCP (Model Context Protocol) server inside VS Code, exposing **OpenEdge ABL compile, syntax-check and XREF tools** — plus general VS Code workspace tools — to external MCP clients such as Claude Code, Claude Desktop or any other MCP-capable agent.
 
-This extension is based on the [VS Code MCP Server](https://github.com/JuehangQin/vscode-mcp-server) extension.
-but it is modified to support ABL.
+The ABL tools bridge to the Language Model tools contributed by the [OpenEdge ABL extension](https://marketplace.visualstudio.com/items?itemName=RiversideSoftware.openedge-abl-lsp) (`RiversideSoftware.openedge-abl-lsp`), so the actual compilation and cross-referencing is done by the ABL language server against your `openedge-project.json` configuration.
 
-# Original README
+> Note: if you use GitHub Copilot Chat inside VS Code, the ABL Language Model tools are already available to it directly. This extension is for **external** agents that talk MCP over HTTP.
 
-A Visual Studio Code extension (available on the [Marketplace](https://marketplace.visualstudio.com/items?itemName=cverbiest.vscode-abl-mcp)) that allows Claude and other MCP clients to code directly in VS Code! Inspired by [Serena](https://github.com/oraios/serena), but using VS Code's built-in capabilities. Perfect for extending existing coding agents like Claude Code with VS Code-specific capabilities (symbol search, document outlines) without duplicating tools they already have. Note that this extension uses the streamable HTTP API, not the SSE API.
+## Requirements
 
-This extension can allow for execution of shell commands. This means that there is a potential security risk, so use with caution, and ensure that you trust the MCP client that you are using and that the port is not exposed to anything. Authentication would help, but as the MCP authentication spec is still in flux, this has not been implemented for now.
-
-PRs are welcome!
-
-## Demo Video
-
-https://github.com/user-attachments/assets/20b87dfb-fc39-4710-a910-b9481dde1e90
+- VS Code 1.99+
+- For the ABL tools: `RiversideSoftware.openedge-abl-lsp` **1.33.7 or later** (**1.33.9+** for `check_syntax_abl`), with a configured OpenEdge project (`openedge-project.json`)
 
 ## Installation
 
-1. Install the extension from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=cverbiest.vscode-abl-mcp) or clone this repository and run `npm install` and `npm run compile` to build it.
+1. Install the extension from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=cverbiest.vscode-abl-mcp) or clone this repository and run `npm install` and `npm run bundle` to build it.
+2. Click the **Vscode ABL MCP** status bar item to start the server (or set `vscode-abl-mcp.defaultEnabled`).
+3. Point your MCP client at `http://localhost:3000/mcp` (port configurable).
 
-## Claude Desktop Configuration
+## ABL Tools
 
-Claude Desktop can be configured to use this extension as an MCP server. To do this, your `claude_desktop_config.json` file should look like this:
+- **compile_abl**: Compiles an ABL source file and returns all compiler errors and warnings with location and severity.
+
+  - Parameters:
+    - `path` (optional): Path of the file to compile, workspace-relative or absolute. Defaults to the active editor.
+  - Compiles the saved file content; save first, or use `check_syntax_abl` for unsaved changes.
+
+- **check_syntax_abl**: Checks the syntax of an ABL file's **buffer content**, without requiring the file to be saved on disk.
+
+  - Parameters:
+    - `path` (optional): Path of the file to check. Defaults to the active editor.
+
+- **xref_abl**: Generates an XREF (or XML XREF) for an ABL file and returns its content — table/field accesses, procedure calls, include references.
+
+  - Parameters:
+    - `path` (optional): Path of the file to process. Defaults to the active editor.
+    - `xml` (optional): When `true`, generates XML XREF instead of plain XREF.
+
+## Client Configuration
+
+### Claude Code
 
 ```
+claude mcp add --transport http vscode-abl http://localhost:3000/mcp
+```
+
+### Claude Desktop
+
+`claude_desktop_config.json`:
+
+```json
 {
   "mcpServers": {
     "vscode-abl-mcp": {
-        "command": "npx",
-        "args": ["mcp-remote@next", "http://localhost:3000/mcp"]
+      "command": "npx",
+      "args": ["mcp-remote@next", "http://localhost:3000/mcp"]
     }
-
   }
 }
 ```
 
-I also like to use this extension in a Claude project, as it allows me to specify additional instructions for Claude. I find the following prompt to work well:
+Any other MCP client can connect via streamable HTTP at `http://localhost:3000/mcp` (or your configured host/port).
 
-```
-You are working on an existing codebase, which you can access using your tools. These code tools interact with a VS Code workspace.
+## General VS Code Tools
 
-WORKFLOW ESSENTIALS:
-1. Always start exploration with list_files_code on root directory (.) first
-2. CRITICAL: Run get_diagnostics_code after EVERY set of code changes before completing tasks
-3. For small edits (≤10 lines): use replace_lines_code with exact original content
-4. For large changes, new files, or uncertain content: use create_file_code with overwrite=true
-
-EXPLORATION STRATEGY:
-- Start: list_files_code with path='.' (never recursive on root)
-- Understand structure: read key files like package.json, README, main entry points
-- Find symbols: use search_symbols_code for functions/classes, get_document_symbols_code for file overviews
-- Before editing: read_file_code the target file to understand current content
-
-EDITING BEST PRACTICES:
-- Small modifications: replace_lines_code (requires exact original content match)
-- If replace_lines_code fails: read_file_code the target lines, then retry with correct content
-- Large changes: create_file_code with overwrite=true is more reliable
-- After any changes: get_diagnostics_code to check for errors
-
-PLANNING REQUIREMENTS:
-Before making code modifications, present a comprehensive plan including:
-- Confidence level (1-10) and reasoning
-- Specific tools you'll use and why
-- Files you'll modify and approach (small edits vs complete rewrites)
-- How you'll verify the changes work (diagnostics, testing, etc.)
-
-ERROR HANDLING:
-- Let errors happen naturally - don't add unnecessary try/catch blocks
-- For tool failures: follow the specific recovery guidance in each tool's description
-- If uncertain about file content: use read_file_code to verify before making changes
-
-APPROVAL PROCESS:
-IMPORTANT: Only run code modification tools after presenting a plan and receiving explicit approval. Each change requires separate approval.
-
-Do not add tests unless specifically requested. If you believe testing is important, explain why and let the user decide.
-```
-
-For context efficiency when exploring codebases, consider adding this to your CLAUDE.md:
-
-```
-## VS Code Symbol Tools for Context Efficiency
-Use VS Code symbol tools to reduce context consumption:
-- `get_document_symbols_code` for file structure overview instead of reading entire files
-- `search_symbols_code` to find symbols by name across the project
-- `get_symbol_definition_code` for type info and docs without full file context
-- Workflow: get outline → search symbols → get definitions → read implementation only when needed
-```
-
-This extension serves as a Model Context Protocol (MCP) server, exposing VS Code's filesystem and editing capabilities to MCP clients.
-
-## Features
-
-The VS Code MCP Server extension implements an MCP-compliant server that allows AI models and other MCP clients to:
-
-- **List files and directories** in your VS Code workspace
-- **Read file contents** with encoding support and size limits
-- **Search for symbols** across your workspace
-- **Get symbol definitions** and hover information by line and symbol name
-- **Create new files** using VS Code's WorkspaceEdit API
-- **Make line replacements** in files
-- **Check for diagnostics** (errors and warnings) in your workspace
-- **Execute shell commands** in the integrated terminal with shell integration
-- **Toggle the server** on and off via a status bar item
-
-This extension enables AI assistants and other tools to interact with your VS Code workspace through the standardized MCP protocol.
-
-## How It Works
-
-The extension creates an MCP server that:
-
-1. Runs locally on a configurable port (when enabled)
-2. Handles MCP protocol requests via HTTP
-3. Exposes VS Code's functionality as MCP tools
-4. Provides a status bar indicator showing server status, which can be clicked to toggle the server on/off
-
-## Supported MCP Tools
+Besides the ABL tools, the server exposes VS Code workspace capabilities, each category individually switchable via `vscode-abl-mcp.enabledTools`:
 
 ### File Tools
 
@@ -131,6 +78,7 @@ The extension creates an MCP server that:
     - `path`: The path to the file to read
     - `encoding` (optional): File encoding (default: utf-8)
     - `maxCharacters` (optional): Maximum character count (default: 100,000)
+    - `startLine` / `endLine` (optional): 1-based line range for partial reads
 
 ### Edit Tools
 
@@ -160,12 +108,6 @@ The extension creates an MCP server that:
     - `format` (optional): Output format ('text' or 'json'). Default: 'text'
     - `includeSource` (optional): Whether to include the diagnostic source. Default: true
 
-  This tool is particularly useful for:
-
-  - Code quality checks before committing changes
-  - Verifying fixes resolved all reported issues
-  - Identifying problems in specific files or the entire workspace
-
 ### Symbol Tools
 
 - **search_symbols_code**: Searches for symbols across the workspace
@@ -174,12 +116,6 @@ The extension creates an MCP server that:
     - `query`: The search query for symbol names
     - `maxResults` (optional): Maximum number of results to return (default: 10)
 
-  This tool is useful for:
-
-  - Finding definitions of symbols (functions, classes, variables, etc.) across the codebase
-  - Exploring project structure and organization
-  - Locating specific elements by name
-
 - **get_symbol_definition_code**: Gets definition information for a symbol in a file
 
   - Parameters:
@@ -187,81 +123,52 @@ The extension creates an MCP server that:
     - `line`: The line number of the symbol
     - `symbol`: The symbol name to look for on the specified line
 
-  This tool provides:
-
-  - Type information, documentation, and source details for symbols
-  - Code context showing the line where the symbol appears
-  - Symbol range information
-
-  It's particularly useful for:
-
-  - Understanding what a symbol represents without navigating away
-  - Checking function signatures, type definitions, or documentation
-  - Quick reference for APIs or library functions
-
 - **get_document_symbols_code**: Gets an outline of all symbols in a file, showing the hierarchical structure
 
   - Parameters:
     - `path`: The path to the file to analyze (relative to workspace)
     - `maxDepth` (optional): Maximum nesting depth to display
 
-  This tool provides:
-
-  - Complete symbol tree for a document (similar to VS Code's Outline view)
-  - Hierarchical structure showing classes, functions, methods, variables, etc.
-  - Position information and symbol kinds for each symbol
-  - Summary statistics by symbol type
-
-  It's particularly useful for:
-
-  - Understanding file structure and organization at a glance
-  - Getting an overview of all symbols in a document
-  - Analyzing code architecture and relationships
-  - Finding all symbols of specific types within a file
-
-### Shell Tools
+### Shell Tools (disabled by default)
 
 - **execute_shell_command_code**: Executes a shell command in the VS Code integrated terminal with shell integration
 
   - Parameters:
     - `command`: The shell command to execute
     - `cwd` (optional): Optional working directory for the command (default: '.')
-
-  This tool is useful for:
-
-  - Running CLI commands and build operations
-  - Executing git commands
-  - Performing any shell operations that require terminal access
-  - Getting command output for analysis and further processing
-
-## Caveats/TODO
-
-Currently, only one workspace is supported. The extension also only works locally, to avoid exposing your VS Code instance to any network you may be connected to.
+    - `timeout` (optional): Command timeout in milliseconds (default: 10000)
 
 ## Extension Settings
 
 - `vscode-abl-mcp.port`: The port number for the MCP server (default: 3000)
 - `vscode-abl-mcp.host`: Host address for the MCP server (default: 127.0.0.1)
 - `vscode-abl-mcp.defaultEnabled`: Whether the MCP server should be enabled by default on VS Code startup
-- `vscode-abl-mcp.enabledTools`: Configure which tool categories are enabled (file, edit, shell, diagnostics, symbol)
+- `vscode-abl-mcp.enabledTools`: Configure which tool categories are enabled (file, edit, shell, diagnostics, symbol, abl)
 
-**Selective Tool Configuration**: Useful for coding agents that already have certain capabilities. For example, with Claude Code you might disable file/edit tools and only enable symbol tools to add VS Code-specific symbol searching without tool duplication.
+**Selective Tool Configuration**: Useful for coding agents that already have certain capabilities. For example, with Claude Code you might disable the file/edit/shell tools and only enable the abl and symbol tools, adding ABL compilation and VS Code symbol search without duplicating tools the agent already has.
 
-## Using with MCP Clients
+## Security
 
-To connect MCP clients to this server, configure them to use:
+This extension can allow for execution of shell commands (when the shell tool category is enabled). This means that there is a potential security risk, so use with caution, and ensure that you trust the MCP client that you are using and that the port is not exposed to anything. The server binds to 127.0.0.1 by default.
+
+## Caveats
+
+Currently, only the first workspace folder is supported.
+
+## Development
 
 ```
-http://localhost:3000/mcp
+npm install
+npm run watch          # TypeScript type-check watch (out/)
+npm run watch:bundle   # esbuild bundle watch (dist/, what VS Code runs)
+npm test               # integration tests via @vscode/test-cli
 ```
 
-Or if you've configured a custom host:
+Press F5 in VS Code to launch an Extension Development Host (runs both watch tasks).
 
-```
-http://[your-host]:3000/mcp
-```
+## Attributions
 
-Remember that you need to enable the server first by clicking on the status bar item!
+This extension is based on the [VS Code MCP Server](https://github.com/JuehangQin/vscode-mcp-server) extension by Juehang Qin, modified to support ABL.
 
 ## Contributing
 

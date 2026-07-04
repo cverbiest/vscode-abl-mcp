@@ -162,18 +162,20 @@ export function registerFileTools(
     fileListingCallback: FileListingCallback
 ): void {
     // Add list_files tool
-    server.tool(
+    server.registerTool(
         'list_files_code',
-        `Explores directory structure in VS Code workspace.
+        {
+            description: `Explores directory structure in VS Code workspace.
 
         WHEN TO USE: Understanding project structure, finding files before read/modify operations.
         
         CRITICAL: NEVER set recursive=true on root directory (.) - output too large. Use recursive only on specific subdirectories.
         
         Returns files and directories at specified path. Start with path='.' to explore root, then dive into specific subdirectories with recursive=true.`,
-        {
+            inputSchema: {
             path: z.string().describe('The path to list files from'),
             recursive: z.boolean().optional().default(false).describe('Whether to list files recursively')
+        }
         },
         async ({ path, recursive = false }): Promise<CallToolResult> => {
             console.log(`[list_files] Tool called with path=${path}, recursive=${recursive}`);
@@ -206,9 +208,10 @@ export function registerFileTools(
     );
 
     // Update read_file tool with line number parameters
-    server.tool(
+    server.registerTool(
         'read_file_code',
-        `Retrieves file contents with size limits and partial reading support.
+        {
+            description: `Retrieves file contents with size limits and partial reading support.
 
         WHEN TO USE: Reading code, config files, analyzing implementations. Files >100k chars will fail.
         
@@ -216,12 +219,13 @@ export function registerFileTools(
         Line numbers: Use startLine/endLine (1-based) for large files to read specific sections only.
         
         If file too large: Use startLine/endLine to read relevant sections only.`,
-        {
+            inputSchema: {
             path: z.string().describe('The path to the file to read'),
             encoding: z.string().optional().default('utf-8').describe('Encoding to convert the file content to a string. Use "base64" for base64-encoded string'),
             maxCharacters: z.number().optional().default(DEFAULT_MAX_CHARACTERS).describe('Maximum character count (default: 100,000)'),
             startLine: z.number().optional().default(-1).describe('The start line number (1-based, inclusive). Default: read from beginning, denoted by -1'),
             endLine: z.number().optional().default(-1).describe('The end line number (1-based, inclusive). Default: read to end, denoted by -1')
+        }
         },
         async ({ path, encoding = 'utf-8', maxCharacters = DEFAULT_MAX_CHARACTERS, startLine = -1, endLine = -1 }): Promise<CallToolResult> => {
             console.log(`[read_file] Tool called with path=${path}, encoding=${encoding}, maxCharacters=${maxCharacters}, startLine=${startLine}, endLine=${endLine}`);

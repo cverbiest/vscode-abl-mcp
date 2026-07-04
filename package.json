@@ -3,9 +3,9 @@
   "icon": "media/logo.png",
   "displayName": "vscode-abl-mcp",
   "description": "VSCode ABL as a MCP server",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "repository": "https://github.com/cverbiest/vscode-abl-mcp",
-  "publisher": "Carl Verbiest",
+  "publisher": "cverbiest",
   "license": "MIT",
   "engines": {
     "vscode": "^1.99.0"
@@ -16,7 +16,7 @@
   "activationEvents": [
     "onStartupFinished"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "configuration": {
       "title": "MCP Server",
@@ -80,34 +80,29 @@
     },
     "commands": [
       {
-        "command": "vscode-abl-mcp.helloWorld",
-        "title": "Hello World"
-      },
-      {
         "command": "vscode-abl-mcp.showServerInfo",
         "title": "Show MCP Server Information"
       },
       {
         "command": "vscode-abl-mcp.toggleServer",
         "title": "Toggle MCP Server"
-      },
-      {
-        "command": "vscode-abl-mcp.callCompileBuffer",
-        "title": "Test: Call abl.compileBuffer"
       }
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run bundle",
+    "bundle": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify",
+    "bundle:dev": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
+    "watch:bundle": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",
+    "pretest": "npm run bundle && npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@cfworker/json-schema": "^4.1.1",
-    "@modelcontextprotocol/inspector": "github:modelcontextprotocol/inspector",
+    "@modelcontextprotocol/inspector": "^0.22.0",
+    "@types/express": "^5.0.6",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/proxyquire": "^1.3.28",
@@ -118,15 +113,16 @@
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "@vscode/vsce": "^3.6.0",
+    "esbuild": "^0.28.1",
     "eslint": "^9.23.0",
     "proxyquire": "^2.1.3",
     "sinon": "^16.1.1",
     "typescript": "^5.8.2"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.10.1",
-    "@types/express": "^4.17.21",
-    "express": "^4.18.3",
-    "zod": "^3.22.4"
+    "@cfworker/json-schema": "^4.1.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "express": "^5.2.1",
+    "zod": "^4.4.3"
   }
 }

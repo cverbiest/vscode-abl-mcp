@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import { MCPServer, ToolConfiguration } from "./server";
 import { listWorkspaceFiles } from "./tools/file-tools";
-import { callCompileBuffer } from "./tools/abl";
 import { logger } from "./utils/logger";
 
 // Re-export for testing purposes
@@ -261,12 +260,6 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     );
 
-    logger.debug("Registering callCompileBuffer command");
-    const compileCommand = vscode.commands.registerCommand(
-      "vscode-abl-mcp.callCompileBuffer",
-      () => callCompileBuffer()
-    );
-
     // Listen for configuration changes to restart server if needed
     const configChangeListener = vscode.workspace.onDidChangeConfiguration(
       async (event) => {
@@ -317,7 +310,6 @@ export async function activate(context: vscode.ExtensionContext) {
       statusBarItem,
       toggleServerCommand,
       showServerInfoCommand,
-      compileCommand,
       configChangeListener,
       { dispose: async () => mcpServer && (await mcpServer.stop()) }
     );

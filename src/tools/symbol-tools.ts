@@ -398,17 +398,19 @@ export async function getDocumentSymbols(
  */
 export function registerSymbolTools(server: McpServer): void {
     // Add search_symbols_code tool
-    server.tool(
+    server.registerTool(
         'search_symbols_code',
-        `Searches for symbols (functions, classes, variables) across workspace using fuzzy matching.
+        {
+            description: `Searches for symbols (functions, classes, variables) across workspace using fuzzy matching.
 
         WHEN TO USE: Finding function/class definitions, exploring project structure, locating specific elements.
         
         Search: Supports partial terms (e.g., 'createW' matches 'createWorkspaceFile'). Returns location and container info.
         Limit results to avoid overwhelming output - increase maxResults only if needed.`,
-        {
+            inputSchema: {
             query: z.string().describe('The search query for symbol names'),
             maxResults: z.number().optional().default(10).describe('Maximum number of results to return (default: 10)')
+        }
         },
         async ({ query, maxResults = 10 }): Promise<CallToolResult> => {
             logger.info(`[search_symbols_code] Tool called with query="${query}", maxResults=${maxResults}`);
@@ -457,18 +459,20 @@ export function registerSymbolTools(server: McpServer): void {
     );
 
     // Add get_symbol_definition_code tool with updated parameters
-    server.tool(
+    server.registerTool(
         'get_symbol_definition_code',
-        `Gets definition information for a symbol using hover data (type, docs, source).
+        {
+            description: `Gets definition information for a symbol using hover data (type, docs, source).
 
         WHEN TO USE: Understanding what a symbol represents, checking function signatures, quick API reference.
         USE search_symbols_code instead for: finding symbols by name across the project.
         
         Requires exact symbol name and line number. If symbol not found on line, returns clear message.`,
-        {
+            inputSchema: {
             path: z.string().describe('The path to the file containing the symbol'),
             line: z.number().describe('The line number of the symbol (1-based)'),
             symbol: z.string().describe('The symbol name to look for on the specified line')
+        }
         },
         async ({ path, line, symbol }): Promise<CallToolResult> => {
             logger.info(`[get_symbol_definition_code] Tool called with path="${path}", line=${line}, symbol="${symbol}"`);
@@ -559,17 +563,19 @@ export function registerSymbolTools(server: McpServer): void {
     );
 
     // Add get_document_symbols_code tool
-    server.tool(
+    server.registerTool(
         'get_document_symbols_code',
-        `Gets complete symbol outline for a file showing hierarchical structure and line numbers.
+        {
+            description: `Gets complete symbol outline for a file showing hierarchical structure and line numbers.
 
         WHEN TO USE: Understanding file structure, getting overview of all symbols, finding symbol positions. This tool should be be preferred over reading the file using read_file_code when only an overview of the file is needed.
         USE search_symbols_code instead for: finding specific symbols by name across the project.
         
         Shows classes, functions, methods, variables with line ranges. Use maxDepth for large files to avoid deep nesting.`,
-        {
+            inputSchema: {
             path: z.string().describe('The path to the file to analyze (relative to workspace)'),
             maxDepth: z.number().optional().describe('Maximum nesting depth to display (optional)')
+        }
         },
         async ({ path, maxDepth }): Promise<CallToolResult> => {
             logger.info(`[get_document_symbols_code] Tool called with path="${path}", maxDepth=${maxDepth}`);

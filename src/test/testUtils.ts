@@ -52,7 +52,8 @@ export function createMockContext(): PartialExtensionContext {
             keys: () => []
         },
         globalState: {
-            get: () => undefined,
+            // Behave like a real Memento: return the provided default when the key is unset
+            get: (_key: string, defaultValue?: unknown) => defaultValue,
             update: () => Promise.resolve(),
             setKeysForSync: () => {},
             keys: () => []
