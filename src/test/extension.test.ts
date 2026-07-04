@@ -25,7 +25,6 @@ suite("Extension Test Suite", () => {
       start: sinon.stub().resolves(),
       stop: sinon.stub().resolves(),
       setFileListingCallback: sinon.spy(),
-      setupTools: sinon.spy(),
     };
 
     // Mock constructor for MCPServer

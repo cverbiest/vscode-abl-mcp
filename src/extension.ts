@@ -124,7 +124,6 @@ async function toggleServerState(
           }
         }
       );
-      mcpServer.setupTools();
 
       logger.info(
         `[toggleServerState] Starting server at ${new Date().toISOString()}`
@@ -227,9 +226,6 @@ export async function activate(context: vscode.ExtensionContext) {
         }
       );
 
-      // Call setupTools after setting the callback
-      mcpServer.setupTools();
-
       await mcpServer.start();
       logger.info("Vscode ABL MCP started successfully");
     } else {
@@ -294,7 +290,6 @@ export async function activate(context: vscode.ExtensionContext) {
                 }
               }
             );
-            mcpServer.setupTools();
             await mcpServer.start();
 
             vscode.window.showInformationMessage(

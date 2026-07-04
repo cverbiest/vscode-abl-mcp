@@ -22,8 +22,6 @@ export interface ToolConfiguration {
 }
 
 export class MCPServer {
-  private server: McpServer;
-  private transport: StreamableHTTPServerTransport;
   private app: express.Application;
   private httpServer?: Server;
   private port: number;
@@ -56,11 +54,20 @@ export class MCPServer {
     this.app = express();
     this.app.use(express.json());
 
-    // Initialize Vscode ABL MCP
-    this.server = new McpServer(
+    this.setupRoutes();
+    this.setupEventHandlers();
+  }
+
+  /**
+   * Creates a fresh McpServer with all enabled tools registered.
+   * The server runs stateless: each POST request gets its own
+   * McpServer + transport pair, so clients can (re)initialize at any time.
+   */
+  private createMcpServer(): McpServer {
+    const server = new McpServer(
       {
         name: "vscode-abl-mcp",
-        version: "1.0.0",
+        version: "0.4.0",
       },
       {
         capabilities: {
@@ -72,110 +79,54 @@ export class MCPServer {
       }
     );
 
-    // Initialize transport
-    this.transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-    });
-
-    // Note: setupTools() is no longer called here
-    this.setupRoutes();
-    this.setupEventHandlers();
-  }
-
-  public setupTools(): void {
-    // Register tools from the tools module based on configuration
-    if (this.fileListingCallback) {
-      logger.info(
-        `Setting up MCP tools with configuration: ${JSON.stringify(
-          this.toolConfig
-        )}`
-      );
-
-      // Register file tools if enabled
-      if (this.toolConfig.file) {
-        registerFileTools(this.server, this.fileListingCallback);
-        logger.info("MCP file tools registered successfully");
+    if (this.toolConfig.file) {
+      if (this.fileListingCallback) {
+        registerFileTools(server, this.fileListingCallback);
       } else {
-        logger.info("MCP file tools disabled by configuration");
+        logger.warn("File listing callback not set - file tools disabled");
       }
-
-      // Register edit tools if enabled
-      if (this.toolConfig.edit) {
-        registerEditTools(this.server);
-        logger.info("MCP edit tools registered successfully");
-      } else {
-        logger.info("MCP edit tools disabled by configuration");
-      }
-
-      // Register shell tools if enabled
-      if (this.toolConfig.shell) {
-        registerShellTools(this.server, this.terminal);
-        logger.info("MCP shell tools registered successfully");
-      } else {
-        logger.info("MCP shell tools disabled by configuration");
-      }
-
-      // Register diagnostics tools if enabled
-      if (this.toolConfig.diagnostics) {
-        registerDiagnosticsTools(this.server);
-        logger.info("MCP diagnostics tools registered successfully");
-      } else {
-        logger.info("MCP diagnostics tools disabled by configuration");
-      }
-
-      // Register symbol tools if enabled
-      if (this.toolConfig.symbol) {
-        registerSymbolTools(this.server);
-        logger.info("MCP symbol tools registered successfully");
-      } else {
-        logger.info("MCP symbol tools disabled by configuration");
-      }
-
-      // Register ABL tools if enabled
-      if (this.toolConfig.abl) {
-        registerAblTools(this.server);
-        logger.info("MCP ABL tools registered successfully");
-      } else {
-        logger.info("MCP ABL tools disabled by configuration");
-      }
-    } else {
-      logger.warn("File listing callback not set during tools setup");
     }
+    if (this.toolConfig.edit) {
+      registerEditTools(server);
+    }
+    if (this.toolConfig.shell) {
+      registerShellTools(server, this.terminal);
+    }
+    if (this.toolConfig.diagnostics) {
+      registerDiagnosticsTools(server);
+    }
+    if (this.toolConfig.symbol) {
+      registerSymbolTools(server);
+    }
+    if (this.toolConfig.abl) {
+      registerAblTools(server);
+    }
+
+    return server;
   }
 
   private setupRoutes(): void {
-    // Handle POST requests for client-to-server communication
+    // Handle POST requests for client-to-server communication.
+    // Stateless mode: a fresh McpServer + transport per request, torn down
+    // when the response closes, so clients can (re)connect at any time.
     this.app.post("/mcp", async (req, res) => {
       logger.info(`Request received: ${req.method} ${req.url}`);
       try {
-        await this.transport.handleRequest(req, res, req.body);
+        const server = this.createMcpServer();
+        const transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: undefined,
+        });
+
+        res.on("close", () => {
+          transport.close();
+          server.close();
+        });
+
+        await server.connect(transport);
+        await transport.handleRequest(req, res, req.body);
       } catch (error) {
         logger.error(
           `Error handling MCP request: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-        if (!res.headersSent) {
-          res.status(500).json({
-            jsonrpc: "2.0",
-            error: {
-              code: -32603,
-              message: "Internal server error",
-            },
-            id: null,
-          });
-        }
-      }
-    });
-
-    // Handle SSE endpoint for server-to-client streaming
-    this.app.get("/mcp/sse", async (req, res) => {
-      logger.info("Received SSE connection request");
-      try {
-        await this.transport.handleRequest(req, res, undefined);
-      } catch (error) {
-        logger.error(
-          `Error handling SSE request: ${
             error instanceof Error ? error.message : String(error)
           }`
         );
@@ -256,13 +207,10 @@ export class MCPServer {
       logger.info("[MCPServer.start] Starting Vscode ABL MCP");
       const startTime = Date.now();
 
-      // Connect transport before starting server
-      logger.info("[MCPServer.start] Connecting transport");
-      const transportConnectStart = Date.now();
-      await this.server.connect(this.transport);
-      const transportConnectTime = Date.now() - transportConnectStart;
       logger.info(
-        `[MCPServer.start] Transport connected (took ${transportConnectTime}ms)`
+        `Serving MCP tools with configuration: ${JSON.stringify(
+          this.toolConfig
+        )}`
       );
 
       // Start HTTP server
@@ -338,23 +286,8 @@ export class MCPServer {
         ]);
       }
 
-      // Rest of the shutdown process...
-      logger.info("[MCPServer.stop] Closing transport");
-      const transportCloseStart = Date.now();
-      await this.transport.close();
-      const transportCloseTime = Date.now() - transportCloseStart;
-      logger.info(
-        `[MCPServer.stop] Transport closed (took ${transportCloseTime}ms)`
-      );
-
-      logger.info("[MCPServer.stop] Closing Vscode ABL MCP");
-      const serverCloseStart = Date.now();
-      await this.server.close();
-      const serverCloseTime = Date.now() - serverCloseStart;
-      logger.info(
-        `[MCPServer.stop] Vscode ABL MCP closed (took ${serverCloseTime}ms)`
-      );
-
+      // Per-request servers/transports are torn down with their responses;
+      // closing the HTTP server is all that remains.
       const totalStopTime = Date.now() - stopStartTime;
       logger.info(
         `[MCPServer.stop] Vscode ABL MCP shutdown complete (total: ${totalStopTime}ms)`
