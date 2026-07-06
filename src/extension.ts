@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
-import { MCPServer, ToolConfiguration } from "./server";
+import { MCPServer, ToolConfiguration, TransportConfiguration } from "./server";
 import { listWorkspaceFiles } from "./tools/file-tools";
 import { installMcpConfigs } from "./mcpConfigInstall";
+import { getPipePath } from "./pipePath";
 import { logger } from "./utils/logger";
 
 // Re-export for testing purposes
@@ -15,6 +16,23 @@ let serverEnabled: boolean = false;
 
 // Terminal name constant
 const TERMINAL_NAME = "MCP Shell Commands";
+
+/**
+ * Gets the transport configuration from VS Code settings. The pipe path is
+ * derived from the workspace folder, so it's only computed when the pipe
+ * transport is actually enabled.
+ */
+function getTransportConfiguration(): TransportConfiguration {
+  const config = vscode.workspace.getConfiguration("vscode-abl-mcp");
+  const pipe = config.get<boolean>("pipeEnabled") ?? true;
+  const http = config.get<boolean>("httpEnabled") ?? false;
+
+  return {
+    http,
+    pipe,
+    pipePath: pipe ? getPipePath() : undefined,
+  };
+}
 
 /**
  * Gets the tool configuration from VS Code settings
@@ -63,15 +81,41 @@ export function getExtensionTerminal(
   return sharedTerminal;
 }
 
+function describeTransport(
+  port: number,
+  transport: TransportConfiguration,
+  suffix: string = ""
+): string {
+  const parts: string[] = [];
+  if (transport.pipe) {
+    parts.push(`pipe at ${transport.pipePath}`);
+  }
+  if (transport.http) {
+    parts.push(`http://localhost:${port}/mcp`);
+  }
+  const description =
+    parts.length > 0 ? parts.join(" and ") : "no transport enabled";
+  return `Vscode ABL MCP running on ${description}${suffix ? " " + suffix : ""}`;
+}
+
 // Function to update status bar
-function updateStatusBar(port: number) {
+function updateStatusBar(port: number, transport: TransportConfiguration) {
   if (!statusBarItem) {
     return;
   }
 
   if (serverEnabled) {
-    statusBarItem.text = `$(server) Vscode ABL MCP: ${port}`;
-    statusBarItem.tooltip = `Vscode ABL MCP running at localhost:${port} (Click to toggle)`;
+    const parts: string[] = [];
+    if (transport.pipe) {
+      parts.push("pipe");
+    }
+    if (transport.http) {
+      parts.push(`:${port}`);
+    }
+    statusBarItem.text = `$(server) Vscode ABL MCP: ${
+      parts.length > 0 ? parts.join(", ") : "no transport"
+    }`;
+    statusBarItem.tooltip = describeTransport(port, transport, "(Click to toggle)");
     statusBarItem.backgroundColor = undefined;
   } else {
     statusBarItem.text = `$(server) Vscode ABL MCP: Off`;
@@ -100,9 +144,10 @@ async function toggleServerState(
   const config = vscode.workspace.getConfiguration("vscode-abl-mcp");
   const port = config.get<number>("port") || 3000;
   const host = config.get<string>("host") || "127.0.0.1";
+  const transportConfig = getTransportConfiguration();
 
   // Update status bar immediately to provide feedback
-  updateStatusBar(port);
+  updateStatusBar(port, transportConfig);
 
   if (serverEnabled) {
     // Start the server if it was disabled
@@ -110,7 +155,7 @@ async function toggleServerState(
       logger.info(`[toggleServerState] Creating Vscode ABL MCP instance`);
       const terminal = getExtensionTerminal(context);
       const toolConfig = getToolConfiguration();
-      mcpServer = new MCPServer(port, host, terminal, toolConfig);
+      mcpServer = new MCPServer(port, host, terminal, toolConfig, transportConfig);
       mcpServer.setFileListingCallback(
         async (path: string, recursive: boolean) => {
           try {
@@ -139,7 +184,7 @@ async function toggleServerState(
       );
 
       vscode.window.showInformationMessage(
-        `Vscode ABL MCP enabled and running at http://localhost:${port}/mcp`
+        describeTransport(port, transportConfig)
       );
     }
   } else {
@@ -202,14 +247,16 @@ export async function activate(context: vscode.ExtensionContext) {
     );
     statusBarItem.command = "vscode-abl-mcp.toggleServer";
 
+    let transportConfig = getTransportConfiguration();
+
     // Only start the server if enabled
     if (serverEnabled) {
       // Create the shared terminal
       const terminal = getExtensionTerminal(context);
 
-      // Initialize Vscode ABL MCP with the configured port, terminal, and tool configuration
+      // Initialize Vscode ABL MCP with the configured port, terminal, tool and transport configuration
       const toolConfig = getToolConfiguration();
-      mcpServer = new MCPServer(port, host, terminal, toolConfig);
+      mcpServer = new MCPServer(port, host, terminal, toolConfig, transportConfig);
 
       // Set up file listing callback
       mcpServer.setFileListingCallback(
@@ -234,7 +281,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     // Update status bar after server state is determined
-    updateStatusBar(port);
+    updateStatusBar(port, transportConfig);
 
     // Register commands
     const toggleServerCommand = vscode.commands.registerCommand(
@@ -246,8 +293,10 @@ export async function activate(context: vscode.ExtensionContext) {
       "vscode-abl-mcp.showServerInfo",
       () => {
         if (serverEnabled) {
+          const currentConfig = vscode.workspace.getConfiguration("vscode-abl-mcp");
+          const currentPort = currentConfig.get<number>("port") || 3000;
           vscode.window.showInformationMessage(
-            `Vscode ABL MCP is running at http://localhost:${port}/mcp`
+            describeTransport(currentPort, getTransportConfiguration())
           );
         } else {
           vscode.window.showInformationMessage(
@@ -263,9 +312,20 @@ export async function activate(context: vscode.ExtensionContext) {
         const currentConfig = vscode.workspace.getConfiguration("vscode-abl-mcp");
         const currentPort = currentConfig.get<number>("port") || 3000;
         const currentHost = currentConfig.get<string>("host") || "127.0.0.1";
+        const currentTransport = getTransportConfiguration();
 
         try {
-          const written = await installMcpConfigs(currentPort, currentHost);
+          const written = await installMcpConfigs({
+            http: currentTransport.http
+              ? { port: currentPort, host: currentHost }
+              : undefined,
+            pipe: currentTransport.pipe
+              ? {
+                  path: currentTransport.pipePath!,
+                  shimPath: context.asAbsolutePath("dist/mcp-pipe-proxy.js"),
+                }
+              : undefined,
+          });
           logger.info(
             `[installMcpConfig] Wrote MCP client config: ${written.join(", ")}`
           );
@@ -286,10 +346,21 @@ export async function activate(context: vscode.ExtensionContext) {
     // Listen for configuration changes to restart server if needed
     const configChangeListener = vscode.workspace.onDidChangeConfiguration(
       async (event) => {
-        if (event.affectsConfiguration("vscode-abl-mcp.enabledTools")) {
+        const transportSettingsChanged =
+          event.affectsConfiguration("vscode-abl-mcp.pipeEnabled") ||
+          event.affectsConfiguration("vscode-abl-mcp.httpEnabled") ||
+          event.affectsConfiguration("vscode-abl-mcp.port") ||
+          event.affectsConfiguration("vscode-abl-mcp.host");
+
+        if (
+          event.affectsConfiguration("vscode-abl-mcp.enabledTools") ||
+          transportSettingsChanged
+        ) {
           logger.info(
-            "[configChangeListener] Tool configuration changed - restarting server if enabled"
+            "[configChangeListener] Configuration changed - restarting server if enabled"
           );
+          transportConfig = getTransportConfiguration();
+
           if (serverEnabled && mcpServer) {
             // Stop current server
             await mcpServer.stop();
@@ -302,7 +373,7 @@ export async function activate(context: vscode.ExtensionContext) {
             const terminal = getExtensionTerminal(context);
             const toolConfig = getToolConfiguration();
 
-            mcpServer = new MCPServer(port, host, terminal, toolConfig);
+            mcpServer = new MCPServer(port, host, terminal, toolConfig, transportConfig);
             mcpServer.setFileListingCallback(
               async (path: string, recursive: boolean) => {
                 try {
@@ -318,10 +389,13 @@ export async function activate(context: vscode.ExtensionContext) {
               }
             );
             await mcpServer.start();
+            updateStatusBar(port, transportConfig);
 
             vscode.window.showInformationMessage(
-              "Vscode ABL MCP restarted with updated tool configuration"
+              "Vscode ABL MCP restarted with updated configuration"
             );
+          } else {
+            updateStatusBar(port, transportConfig);
           }
         }
       }

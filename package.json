@@ -3,7 +3,7 @@
   "icon": "media/logo.png",
   "displayName": "vscode-abl-mcp",
   "description": "VSCode ABL as a MCP server",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "repository": "https://github.com/cverbiest/vscode-abl-mcp",
   "publisher": "cverbiest",
   "license": "MIT",
@@ -21,17 +21,27 @@
     "configuration": {
       "title": "MCP Server",
       "properties": {
+        "vscode-abl-mcp.pipeEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the named pipe (Windows) / Unix domain socket (Linux/macOS) MCP transport. Recommended: each workspace gets its own pipe derived from its folder path, so multiple VS Code windows never conflict the way a shared TCP port can."
+        },
+        "vscode-abl-mcp.httpEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable the HTTP MCP transport on a fixed TCP port. Useful for clients that can't use a stdio-based server, but a shared port can conflict when multiple workspace windows are open."
+        },
         "vscode-abl-mcp.port": {
           "type": "number",
           "default": 3000,
           "minimum": 1024,
           "maximum": 65535,
-          "description": "The port number for the MCP server"
+          "description": "The port number for the MCP server (used only when the HTTP transport is enabled)"
         },
         "vscode-abl-mcp.host": {
           "type": "string",
           "default": "127.0.0.1",
-          "description": "Host address for the MCP server"
+          "description": "Host address for the MCP server (used only when the HTTP transport is enabled)"
         },
         "vscode-abl-mcp.defaultEnabled": {
           "type": "boolean",
@@ -95,8 +105,8 @@
   },
   "scripts": {
     "vscode:prepublish": "pnpm run bundle",
-    "bundle": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify",
-    "bundle:dev": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "bundle": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify && esbuild src/pipeProxy.ts --bundle --outfile=dist/mcp-pipe-proxy.js --format=cjs --platform=node --minify",
+    "bundle:dev": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap && esbuild src/pipeProxy.ts --bundle --outfile=dist/mcp-pipe-proxy.js --format=cjs --platform=node --sourcemap",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "watch:bundle": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",

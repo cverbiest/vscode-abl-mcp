@@ -124,11 +124,12 @@ suite("Extension Test Suite", () => {
     );
     assert.strictEqual(statusBarItem.show.called, true, "Status bar not shown");
 
-    // Check that the text contains the port number
+    // Pipe transport is enabled by default (and HTTP is not), so the status
+    // bar should reflect the pipe transport rather than a port number.
     assert.strictEqual(
-      statusBarItem.text.includes("4321"),
+      statusBarItem.text.includes("pipe"),
       true,
-      "Status bar does not show configured port"
+      "Status bar does not show the enabled pipe transport"
     );
   });
 

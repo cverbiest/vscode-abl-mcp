@@ -3,9 +3,47 @@ import { logger } from "./utils/logger";
 
 const SERVER_NAME = "vscode-abl";
 
+export interface HttpTransportOptions {
+  port: number;
+  host: string;
+}
+
+export interface PipeTransportOptions {
+  /** Named pipe (Windows) or Unix domain socket path (Linux/macOS) the extension listens on. */
+  path: string;
+  /** Absolute path to the bundled stdio<->pipe proxy script clients spawn. */
+  shimPath: string;
+}
+
+export interface InstallMcpConfigOptions {
+  http?: HttpTransportOptions;
+  pipe?: PipeTransportOptions;
+}
+
 function buildUrl(host: string, port: number): string {
   const clientHost = host === "0.0.0.0" ? "127.0.0.1" : host;
   return `http://${clientHost}:${port}/mcp`;
+}
+
+/**
+ * Prefer the pipe transport when both are enabled: it can't collide across
+ * workspace windows the way a shared HTTP port can.
+ */
+function pickServerEntry(
+  options: InstallMcpConfigOptions
+): { command: string; args: string[] } | { url: string } {
+  if (options.pipe) {
+    return {
+      command: "node",
+      args: [options.pipe.shimPath, options.pipe.path],
+    };
+  }
+  if (options.http) {
+    return { url: buildUrl(options.http.host, options.http.port) };
+  }
+  throw new Error(
+    "No MCP transport is enabled - enable the pipe or HTTP transport before installing client config"
+  );
 }
 
 async function readFileIfExists(uri: vscode.Uri): Promise<string | undefined> {
@@ -56,22 +94,38 @@ async function upsertJsonMcpServer(
   await writeFile(fileUri, JSON.stringify(json, null, 2) + "\n");
 }
 
+function tomlStringArray(values: string[]): string {
+  return `[${values.map((v) => JSON.stringify(v)).join(", ")}]`;
+}
+
+function buildTomlEntryBody(
+  entry: { command: string; args: string[] } | { url: string }
+): string {
+  if ("url" in entry) {
+    return `url = ${JSON.stringify(entry.url)}`;
+  }
+  return `command = ${JSON.stringify(entry.command)}\nargs = ${tomlStringArray(
+    entry.args
+  )}`;
+}
+
 /**
  * Replaces (or appends) a `[mcp_servers.<key>]` table in a Codex TOML config,
- * leaving the rest of the file untouched. Only handles the simple
- * `url = "..."` shape this extension writes; hand-added subtables under the
- * same key are left as-is after the replaced header.
+ * leaving the rest of the file untouched. Only handles the simple `url = "..."`
+ * or `command = "..."` / `args = [...]` shapes this extension writes;
+ * hand-added subtables under the same key are left as-is after the replaced
+ * header.
  */
 function upsertTomlMcpServer(
   existing: string,
   serverKey: string,
-  url: string
+  entry: { command: string; args: string[] } | { url: string }
 ): string {
-  const escapedKey = serverKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedKey = serverKey.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
   const headerRegex = new RegExp(
-    `\\[mcp_servers\\.${escapedKey}\\][^]*?(?=\\n\\[|$)`
+    String.raw`\[mcp_servers\.${escapedKey}\][^]*?(?=\n\[|$)`
   );
-  const section = `[mcp_servers.${serverKey}]\nurl = "${url}"`;
+  const section = `[mcp_servers.${serverKey}]\n${buildTomlEntryBody(entry)}`;
 
   if (headerRegex.test(existing)) {
     return existing.replace(headerRegex, section);
@@ -87,31 +141,44 @@ function upsertTomlMcpServer(
 
 /**
  * Writes/updates project-local MCP client config for Claude Code, Codex CLI
- * and Gemini CLI so they can reach this extension's HTTP MCP server.
+ * and Gemini CLI so they can reach this extension's MCP server. When both
+ * transports are enabled, the pipe transport is used since it can't collide
+ * across workspace windows the way a shared HTTP port can.
  * Returns the list of file paths written.
  */
 export async function installMcpConfigs(
-  port: number,
-  host: string
+  options: InstallMcpConfigOptions
 ): Promise<string[]> {
   const folders = vscode.workspace.workspaceFolders;
   if (!folders || folders.length === 0) {
     throw new Error("No workspace folder is open");
   }
   const root = folders[0].uri;
-  const url = buildUrl(host, port);
+  const entry = pickServerEntry(options);
   const written: string[] = [];
 
   // Claude Code: .mcp.json at the project root.
   const claudeUri = vscode.Uri.joinPath(root, ".mcp.json");
-  await upsertJsonMcpServer(claudeUri, SERVER_NAME, { type: "http", url });
+  await upsertJsonMcpServer(
+    claudeUri,
+    SERVER_NAME,
+    "url" in entry
+      ? { type: "http", url: entry.url }
+      : { type: "stdio", command: entry.command, args: entry.args }
+  );
   written.push(claudeUri.fsPath);
 
   // Gemini CLI: .gemini/settings.json at the project root.
   const geminiDir = vscode.Uri.joinPath(root, ".gemini");
   await ensureDir(geminiDir);
   const geminiUri = vscode.Uri.joinPath(geminiDir, "settings.json");
-  await upsertJsonMcpServer(geminiUri, SERVER_NAME, { httpUrl: url });
+  await upsertJsonMcpServer(
+    geminiUri,
+    SERVER_NAME,
+    "url" in entry
+      ? { httpUrl: entry.url }
+      : { command: entry.command, args: entry.args }
+  );
   written.push(geminiUri.fsPath);
 
   // Codex CLI: .codex/config.toml at the project root (trusted projects only).
@@ -119,12 +186,13 @@ export async function installMcpConfigs(
   await ensureDir(codexDir);
   const codexUri = vscode.Uri.joinPath(codexDir, "config.toml");
   const existingToml = (await readFileIfExists(codexUri)) ?? "";
-  const updatedToml = upsertTomlMcpServer(existingToml, SERVER_NAME, url);
+  const updatedToml = upsertTomlMcpServer(existingToml, SERVER_NAME, entry);
   await writeFile(codexUri, updatedToml);
   written.push(codexUri.fsPath);
 
+  const target = "url" in entry ? entry.url : `${entry.command} ${entry.args.join(" ")}`;
   logger.info(
-    `[installMcpConfigs] Wrote MCP config for Claude Code, Gemini CLI and Codex CLI targeting ${url}`
+    `[installMcpConfigs] Wrote MCP config for Claude Code, Gemini CLI and Codex CLI targeting ${target}`
   );
   return written;
 }
