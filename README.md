@@ -4,7 +4,7 @@ A Visual Studio Code extension that runs an MCP (Model Context Protocol) server 
 
 The ABL tools bridge to the Language Model tools contributed by the [OpenEdge ABL extension](https://marketplace.visualstudio.com/items?itemName=RiversideSoftware.openedge-abl-lsp) (`RiversideSoftware.openedge-abl-lsp`), so the actual compilation and cross-referencing is done by the ABL language server against your `openedge-project.json` configuration.
 
-> Note: if you use GitHub Copilot Chat inside VS Code, the ABL Language Model tools are already available to it directly. This extension is for **external** agents that talk MCP over HTTP.
+> Note: if you use GitHub Copilot Chat inside VS Code, the ABL Language Model tools are already available to it directly. This extension is for **external** agents that talk MCP.
 
 ## Requirements
 
@@ -15,7 +15,16 @@ The ABL tools bridge to the Language Model tools contributed by the [OpenEdge AB
 
 1. Install the extension from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=cverbiest.vscode-abl-mcp) or clone this repository and run `pnpm install` and `pnpm run bundle` to build it.
 2. Click the **Vscode ABL MCP** status bar item to start the server (or set `vscode-abl-mcp.defaultEnabled`).
-3. Point your MCP client at `http://localhost:3000/mcp` (port configurable).
+3. Run the **Vscode ABL MCP: Install MCP Config** command (or configure your client manually, see below) to point it at the server.
+
+## Transports
+
+The extension exposes two transports, each independently toggled via settings:
+
+- **Pipe (default, `vscode-abl-mcp.pipeEnabled`)**: a named pipe on Windows (`\\.\pipe\...`) or a Unix domain socket on Linux/macOS. The path is derived per-workspace (hashed from the workspace folder), so multiple VS Code windows never collide the way a shared TCP port can. Clients that only support stdio-based (`command`/`args`) MCP servers spawn a small bundled proxy (`dist/mcp-pipe-proxy.js`) that forwards stdio to the pipe.
+- **HTTP (opt-in, `vscode-abl-mcp.httpEnabled`)**: streamable HTTP on `http://localhost:3000/mcp` (host/port configurable). Useful for clients that can't spawn a local process, but a shared port can conflict when multiple workspace windows are open.
+
+If both are enabled, the **Install MCP Config** command prefers the pipe transport.
 
 ## ABL Tools
 
@@ -38,7 +47,25 @@ The ABL tools bridge to the Language Model tools contributed by the [OpenEdge AB
 
 ## Client Configuration
 
+The **Vscode ABL MCP: Install MCP Config** command writes project-local config for Claude Code (`.mcp.json`), Codex CLI (`.codex/config.toml`) and Gemini CLI (`.gemini/settings.json`) automatically, using whichever transport is enabled. Manual setup is also possible:
+
 ### Claude Code
+
+Pipe transport (default), via the bundled stdio proxy:
+
+```json
+{
+  "mcpServers": {
+    "vscode-abl": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["<extension install dir>/dist/mcp-pipe-proxy.js", "<pipe path>"]
+    }
+  }
+}
+```
+
+Or, with `vscode-abl-mcp.httpEnabled` turned on:
 
 ```
 claude mcp add --transport http vscode-abl http://localhost:3000/mcp
@@ -46,7 +73,7 @@ claude mcp add --transport http vscode-abl http://localhost:3000/mcp
 
 ### Claude Desktop
 
-`claude_desktop_config.json`:
+`claude_desktop_config.json`, with the HTTP transport enabled:
 
 ```json
 {
@@ -59,7 +86,7 @@ claude mcp add --transport http vscode-abl http://localhost:3000/mcp
 }
 ```
 
-Any other MCP client can connect via streamable HTTP at `http://localhost:3000/mcp` (or your configured host/port).
+Any other MCP client can connect via streamable HTTP at `http://localhost:3000/mcp` (or your configured host/port) when `vscode-abl-mcp.httpEnabled` is set, or by spawning `dist/mcp-pipe-proxy.js <pipe path>` as a stdio server when using the pipe transport.
 
 ## General VS Code Tools
 
@@ -140,8 +167,10 @@ Besides the ABL tools, the server exposes VS Code workspace capabilities, each c
 
 ## Extension Settings
 
-- `vscode-abl-mcp.port`: The port number for the MCP server (default: 3000)
-- `vscode-abl-mcp.host`: Host address for the MCP server (default: 127.0.0.1)
+- `vscode-abl-mcp.pipeEnabled`: Enable the named pipe / Unix domain socket transport (default: true)
+- `vscode-abl-mcp.httpEnabled`: Enable the HTTP transport on a fixed TCP port (default: false)
+- `vscode-abl-mcp.port`: The port number for the MCP server, used only when the HTTP transport is enabled (default: 3000)
+- `vscode-abl-mcp.host`: Host address for the MCP server, used only when the HTTP transport is enabled (default: 127.0.0.1)
 - `vscode-abl-mcp.defaultEnabled`: Whether the MCP server should be enabled by default on VS Code startup
 - `vscode-abl-mcp.enabledTools`: Configure which tool categories are enabled (file, edit, shell, diagnostics, symbol, abl)
 
