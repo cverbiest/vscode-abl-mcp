@@ -86,17 +86,21 @@
       {
         "command": "vscode-abl-mcp.toggleServer",
         "title": "Toggle MCP Server"
+      },
+      {
+        "command": "vscode-abl-mcp.installMcpConfig",
+        "title": "Install MCP Config for Claude Code, Codex CLI, Gemini CLI"
       }
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run bundle",
+    "vscode:prepublish": "pnpm run bundle",
     "bundle": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify",
     "bundle:dev": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "watch:bundle": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",
-    "pretest": "npm run bundle && npm run compile && npm run lint",
+    "pretest": "pnpm run bundle && pnpm run compile && pnpm run lint",
     "lint": "eslint src",
     "test": "vscode-test"
   },
@@ -124,5 +128,6 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "express": "^5.2.1",
     "zod": "^4.4.3"
-  }
+  },
+  "packageManager": "pnpm@11.10.0"
 }

@@ -7,7 +7,7 @@
 			// One-shot build used by F5: bundle to dist/ then type-check
 			"label": "build",
 			"type": "shell",
-			"command": "npm run bundle:dev && npm run compile",
+			"command": "pnpm run bundle:dev && pnpm run compile",
 			"problemMatcher": ["$tsc"],
 			"group": {
 				"kind": "build",

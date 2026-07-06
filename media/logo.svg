@@ -56,7 +56,7 @@
   <!-- Simple robot-inspired logo with code elements -->
   <text
      xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:900;font-stretch:normal;font-size:80px;line-height:1.25;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro, Heavy';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none"
+     style="font-style:normal;font-variant:normal;font-weight:900;font-stretch:normal;font-size:70px;line-height:1.25;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro, Heavy';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none"
      x="7.7599239"
      y="77.360001"
      id="text2890"><tspan
@@ -64,15 +64,15 @@
        id="tspan2888"
        x="7.7599239"
        y="77.360001"
-       style="font-style:normal;font-variant:normal;font-weight:900;font-stretch:normal;font-size:80px;font-family:'Source Sans 3';-inkscape-font-specification:'Source Sans 3, Heavy';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#1fa9f9;fill-opacity:1">VSCode</tspan><tspan
+       style="font-style:normal;font-variant:normal;font-weight:900;font-stretch:normal;font-size:70px;font-family:'Source Sans 3';-inkscape-font-specification:'Source Sans 3, Heavy';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#4ce600;fill-opacity:1">VSCode</tspan><tspan
        sodipodi:role="line"
        x="7.7599239"
        y="177.69182"
        id="tspan2892"
-       style="font-style:normal;font-variant:normal;font-weight:900;font-stretch:normal;font-size:80px;font-family:'Source Sans 3';-inkscape-font-specification:'Source Sans 3, Heavy';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#f9f9f9;fill-opacity:1">MCP</tspan><tspan
+       style="font-style:normal;font-variant:normal;font-weight:900;font-stretch:normal;font-size:70px;font-family:'Source Sans 3';-inkscape-font-specification:'Source Sans 3, Heavy';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#4ce600;fill-opacity:1">ABL</tspan><tspan
        sodipodi:role="line"
        x="7.7599239"
        y="278.02365"
-       style="font-style:normal;font-variant:normal;font-weight:900;font-stretch:normal;font-size:80px;font-family:'Source Sans 3';-inkscape-font-specification:'Source Sans 3, Heavy';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#f9f9f9;fill-opacity:1"
-       id="tspan2894">Server</tspan></text>
+       style="font-style:normal;font-variant:normal;font-weight:900;font-stretch:normal;font-size:70px;font-family:'Source Sans 3';-inkscape-font-specification:'Source Sans 3, Heavy';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#4ce600;fill-opacity:1"
+       id="tspan2894">MCP</tspan></text>
 </svg>

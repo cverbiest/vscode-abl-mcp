@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { MCPServer, ToolConfiguration } from "./server";
 import { listWorkspaceFiles } from "./tools/file-tools";
+import { installMcpConfigs } from "./mcpConfigInstall";
 import { logger } from "./utils/logger";
 
 // Re-export for testing purposes
@@ -256,6 +257,32 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     );
 
+    const installMcpConfigCommand = vscode.commands.registerCommand(
+      "vscode-abl-mcp.installMcpConfig",
+      async () => {
+        const currentConfig = vscode.workspace.getConfiguration("vscode-abl-mcp");
+        const currentPort = currentConfig.get<number>("port") || 3000;
+        const currentHost = currentConfig.get<string>("host") || "127.0.0.1";
+
+        try {
+          const written = await installMcpConfigs(currentPort, currentHost);
+          logger.info(
+            `[installMcpConfig] Wrote MCP client config: ${written.join(", ")}`
+          );
+          vscode.window.showInformationMessage(
+            `Vscode ABL MCP: updated MCP config for Claude Code, Codex CLI and Gemini CLI (${written.length} file(s)).`
+          );
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          logger.error(`[installMcpConfig] Failed to write MCP config: ${message}`);
+          vscode.window.showErrorMessage(
+            `Vscode ABL MCP: failed to update MCP config: ${message}`
+          );
+        }
+      }
+    );
+
     // Listen for configuration changes to restart server if needed
     const configChangeListener = vscode.workspace.onDidChangeConfiguration(
       async (event) => {
@@ -305,6 +332,7 @@ export async function activate(context: vscode.ExtensionContext) {
       statusBarItem,
       toggleServerCommand,
       showServerInfoCommand,
+      installMcpConfigCommand,
       configChangeListener,
       { dispose: async () => mcpServer && (await mcpServer.stop()) }
     );

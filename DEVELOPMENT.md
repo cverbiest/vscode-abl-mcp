@@ -32,7 +32,7 @@ clones as well.
 
 ## Prerequisites
 
-- Node.js 20+, npm
+- Node.js 20+, pnpm
 - VS Code 1.99+
 - For end-to-end ABL testing: the **OpenEdge ABL** extension
   (`RiversideSoftware.openedge-abl-lsp`) **1.33.7 or later** (1.33.9+ for
@@ -42,16 +42,16 @@ clones as well.
 ## Build
 
 ```
-npm install
-npm run bundle        # production bundle (minified) -> dist/extension.js
-npm run bundle:dev    # dev bundle with sourcemaps  -> dist/extension.js
-npm run compile       # tsc type-check + test build -> out/
-npm run lint          # eslint
+pnpm install
+pnpm run bundle        # production bundle (minified) -> dist/extension.js
+pnpm run bundle:dev    # dev bundle with sourcemaps  -> dist/extension.js
+pnpm run compile       # tsc type-check + test build -> out/
+pnpm run lint          # eslint
 ```
 
 There are two build outputs on purpose: VS Code loads the esbuild bundle from
 `dist/`, while the test runner (`@vscode/test-cli`) executes the tsc output in
-`out/`. `npm test` builds both.
+`out/`. `pnpm test` builds both.
 
 ## Run / Debug
 
@@ -59,7 +59,7 @@ There are two build outputs on purpose: VS Code loads the esbuild bundle from
 Extension Development Host. Alternatively, launch one from a terminal:
 
 ```
-npm run bundle:dev
+pnpm run bundle:dev
 code --new-window --extensionDevelopmentPath=<repo-root> <path-to-an-openedge-project>
 ```
 
@@ -75,10 +75,14 @@ In the development host:
 
 ### Exercising the MCP endpoint
 
-With the MCP Inspector: `npx @modelcontextprotocol/inspector`, transport
+With the MCP Inspector: `pnpm dlx @modelcontextprotocol/inspector`, transport
 "Streamable HTTP", URL `http://localhost:3000/mcp`.
 
-With Claude Code: `claude mcp add --transport http vscode-abl http://localhost:3000/mcp`.
+With Claude Code: `claude mcp add --transport http vscode-abl http://localhost:3000/mcp`,
+or run the **Install MCP Config for Claude Code, Codex CLI, Gemini CLI**
+command (`vscode-abl-mcp.installMcpConfig`) from the Command Palette, which
+writes/updates `.mcp.json`, `.gemini/settings.json` and `.codex/config.toml`
+in the workspace root with the currently configured port and host.
 
 Or plain curl (note the double `Accept` header):
 
@@ -91,7 +95,7 @@ curl -s -X POST http://localhost:3000/mcp \
 ## Tests
 
 ```
-npm test
+pnpm test
 ```
 
 Downloads a VS Code build on first run, then runs `src/test/**/*.test.ts`
@@ -134,7 +138,7 @@ without OpenEdge or the ABL extension installed.
 ### Updating dependencies
 
 - `@modelcontextprotocol/sdk`: check its release notes; tool registration
-  uses `server.registerTool()`. After an upgrade run `npm test` and do one
+  uses `server.registerTool()`. After an upgrade run `pnpm test` and do one
   manual reconnect test (connect, disconnect, reconnect with Claude Code or
   the inspector) — transport/session semantics are where SDK changes bite.
 - When upstream vscode-abl changes its LM tools (names, input schema,
@@ -146,7 +150,13 @@ without OpenEdge or the ABL extension installed.
 ### Release
 
 1. Bump `version` in `package.json`, add a `CHANGELOG.md` entry.
-2. `npm test`
-3. `npx vsce package` (runs the production bundle via `vscode:prepublish`)
-   and smoke-test the VSIX: `code --install-extension vscode-abl-mcp-<version>.vsix`.
-4. `npx vsce publish` (publisher `cverbiest`).
+2. `pnpm test`
+3. `pnpm dlx vsce package --no-dependencies` (runs the production bundle via
+   `vscode:prepublish`) and smoke-test the VSIX:
+   `code --install-extension vscode-abl-mcp-<version>.vsix`.
+   `--no-dependencies` is required under pnpm: vsce's dependency step shells
+   out to `npm list`, which can't parse pnpm's symlinked `node_modules` and
+   fails with bogus "missing"/"invalid" errors. Harmless to skip here since
+   `.vscodeignore` excludes `node_modules/**` anyway — the VSIX ships only
+   the esbuild bundle in `dist/`.
+4. `pnpm dlx vsce publish --no-dependencies` (publisher `cverbiest`).

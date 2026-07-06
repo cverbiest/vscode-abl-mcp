@@ -13,7 +13,7 @@ The ABL tools bridge to the Language Model tools contributed by the [OpenEdge AB
 
 ## Installation
 
-1. Install the extension from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=cverbiest.vscode-abl-mcp) or clone this repository and run `npm install` and `npm run bundle` to build it.
+1. Install the extension from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=cverbiest.vscode-abl-mcp) or clone this repository and run `pnpm install` and `pnpm run bundle` to build it.
 2. Click the **Vscode ABL MCP** status bar item to start the server (or set `vscode-abl-mcp.defaultEnabled`).
 3. Point your MCP client at `http://localhost:3000/mcp` (port configurable).
 
@@ -160,9 +160,9 @@ Currently, only the first workspace folder is supported.
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the full build/test/debug/release guide. Quick start:
 
 ```
-npm install
-npm run bundle:dev     # esbuild bundle (dist/, what VS Code runs)
-npm test               # integration tests via @vscode/test-cli
+pnpm install
+pnpm run bundle:dev     # esbuild bundle (dist/, what VS Code runs)
+pnpm test               # integration tests via @vscode/test-cli
 ```
 
 Press F5 in VS Code to launch an Extension Development Host. The `related/` folder contains a reference clone of [vscode-abl](https://github.com/vscode-abl/vscode-abl) (the extension whose Language Model tools this project bridges to); it is not part of the build.
