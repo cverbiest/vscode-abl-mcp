@@ -3,7 +3,7 @@
   "icon": "media/logo.png",
   "displayName": "vscode-abl-mcp",
   "description": "VSCode ABL as a MCP server",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "repository": "https://github.com/cverbiest/vscode-abl-mcp",
   "publisher": "cverbiest",
   "license": "MIT",
