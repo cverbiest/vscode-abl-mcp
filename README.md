@@ -157,14 +157,15 @@ Currently, only the first workspace folder is supported.
 
 ## Development
 
+See [DEVELOPMENT.md](DEVELOPMENT.md) for the full build/test/debug/release guide. Quick start:
+
 ```
 npm install
-npm run watch          # TypeScript type-check watch (out/)
-npm run watch:bundle   # esbuild bundle watch (dist/, what VS Code runs)
+npm run bundle:dev     # esbuild bundle (dist/, what VS Code runs)
 npm test               # integration tests via @vscode/test-cli
 ```
 
-Press F5 in VS Code to launch an Extension Development Host (runs both watch tasks).
+Press F5 in VS Code to launch an Extension Development Host. The `related/` folder contains a reference clone of [vscode-abl](https://github.com/vscode-abl/vscode-abl) (the extension whose Language Model tools this project bridges to); it is not part of the build.
 
 ## Attributions
 
