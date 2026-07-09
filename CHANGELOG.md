@@ -4,6 +4,18 @@ All notable changes to the "vscode-abl-mcp" extension will be documented in this
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+
+## [0.4.3] - 2026-07-09
+
+### Added
+
+- `preprocess_abl` MCP tool: runs `COMPILE ... PREPROCESS` on an ABL file and returns the preprocessed output.
+- `debug_listing_abl` MCP tool: runs `COMPILE ... DEBUG-LISTING` on an ABL file and returns the debug listing.
+
+Both assume halucinated `abl_preprocess` and `abl_debug_listing` Language Model tools exists in the RiversideSoftware.openedge-abl-lsp extension.
+If they don't exists a work-around does debug-list and preprocess in the editor and returns the resulting editor contents.
+
 ## [0.4.0] - 2026-07-04
 
 ### Added

@@ -8,7 +8,7 @@ How to build, test, debug and maintain the vscode-abl-mcp extension.
 | --- | --- |
 | `src/extension.ts` | Extension entry point: status bar, commands, server lifecycle |
 | `src/server.ts` | Express + MCP server (streamable HTTP on `/mcp`) |
-| `src/tools/abl.ts` | ABL bridge: MCP tools → `vscode.lm.invokeTool` (`abl_compile`, `abl_check_syntax`, `abl_xref`) |
+| `src/tools/abl.ts` | ABL bridge: MCP tools → `vscode.lm.invokeTool` (`abl_compile`, `abl_check_syntax`, `abl_xref`, `abl_preprocess`, `abl_debug_listing`) |
 | `src/tools/*.ts` | Generic VS Code tools (file, edit, shell, diagnostics, symbol) |
 | `src/test/` | Integration tests (run inside a VS Code test instance) |
 | `related/` | Reference material, **not part of the build** — see below |
@@ -79,7 +79,7 @@ With the MCP Inspector: `pnpm dlx @modelcontextprotocol/inspector`, transport
 "Streamable HTTP", URL `http://localhost:3000/mcp`.
 
 With Claude Code: `claude mcp add --transport http vscode-abl http://localhost:3000/mcp`,
-or run the **Install MCP Config for Claude Code, Codex CLI, Gemini CLI**
+or run the **VsCode ABL MCP: Install Config for Claude Code, Codex CLI, Gemini CLI**
 command (`vscode-abl-mcp.installMcpConfig`) from the Command Palette, which
 writes/updates `.mcp.json`, `.gemini/settings.json` and `.codex/config.toml`
 in the workspace root with the currently configured port and host.
@@ -151,7 +151,7 @@ without OpenEdge or the ABL extension installed.
 
 1. Bump `version` in `package.json`, add a `CHANGELOG.md` entry.
 2. `pnpm test`
-3. `pnpm dlx vsce package --no-dependencies` (runs the production bundle via
+3. `pnpm exec vsce package --no-dependencies` (runs the production bundle via
    `vscode:prepublish`) and smoke-test the VSIX:
    `code --install-extension vscode-abl-mcp-<version>.vsix`.
    `--no-dependencies` is required under pnpm: vsce's dependency step shells
@@ -159,4 +159,7 @@ without OpenEdge or the ABL extension installed.
    fails with bogus "missing"/"invalid" errors. Harmless to skip here since
    `.vscodeignore` excludes `node_modules/**` anyway — the VSIX ships only
    the esbuild bundle in `dist/`.
-4. `pnpm dlx vsce publish --no-dependencies` (publisher `cverbiest`).
+   Use `pnpm exec` (not `pnpm dlx vsce`) so it runs the `@vscode/vsce`
+   devDependency already pinned in `package.json` — `pnpm dlx vsce` fetches
+   the old, deprecated, unscoped `vsce` package from npm instead.
+4. `pnpm exec vsce publish --no-dependencies` (publisher `cverbiest`).

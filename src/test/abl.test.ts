@@ -62,11 +62,18 @@ suite("ABL Bridge Tools Test Suite", () => {
           { name: "abl_compile" },
           { name: "abl_check_syntax" },
           { name: "abl_xref" },
+          { name: "abl_preprocess" },
+          { name: "abl_debug_listing" },
         ],
         invokeTool: invokeToolStub,
       },
-      window: { activeTextEditor: undefined },
+      window: {
+        activeTextEditor: undefined,
+        showTextDocument: sinon.stub().resolves(),
+        onDidChangeActiveTextEditor: sinon.stub().returns({ dispose: sinon.spy() }),
+      },
       workspace: { workspaceFolders: undefined },
+      commands: { executeCommand: sinon.stub().resolves() },
     };
 
     loadAndRegister();
@@ -76,11 +83,17 @@ suite("ABL Bridge Tools Test Suite", () => {
     sinon.restore();
   });
 
-  test("Registers compile_abl, check_syntax_abl and xref_abl", () => {
+  test("Registers all five ABL bridge tools", () => {
     assert.deepStrictEqual(
       [...tools.keys()].sort(),
-      ["check_syntax_abl", "compile_abl", "xref_abl"],
-      "Expected the three ABL bridge tools to be registered"
+      [
+        "check_syntax_abl",
+        "compile_abl",
+        "debug_listing_abl",
+        "preprocess_abl",
+        "xref_abl",
+      ],
+      "Expected the five ABL bridge tools to be registered"
     );
   });
 
@@ -112,6 +125,69 @@ suite("ABL Bridge Tools Test Suite", () => {
     const [toolName, options] = invokeToolStub.firstCall.args;
     assert.strictEqual(toolName, "abl_xref");
     assert.strictEqual(options.input.xml, true);
+  });
+
+  test("preprocess_abl invokes the abl_preprocess LM tool with the file URI", async () => {
+    await tools
+      .get("preprocess_abl")!
+      .handler({ path: "C:\\work\\src\\order.p" });
+
+    const [toolName, options] = invokeToolStub.firstCall.args;
+    assert.strictEqual(toolName, "abl_preprocess");
+    assert.strictEqual(
+      options.input.fileUri,
+      vscode.Uri.file("C:\\work\\src\\order.p").toString()
+    );
+  });
+
+  test("debug_listing_abl invokes the abl_debug_listing LM tool with the file URI", async () => {
+    await tools
+      .get("debug_listing_abl")!
+      .handler({ path: "C:\\work\\src\\order.p" });
+
+    const [toolName, options] = invokeToolStub.firstCall.args;
+    assert.strictEqual(toolName, "abl_debug_listing");
+    assert.strictEqual(
+      options.input.fileUri,
+      vscode.Uri.file("C:\\work\\src\\order.p").toString()
+    );
+  });
+
+  test("debug_listing_abl falls back to the abl.generateDebugListing command when the LM tool is unavailable", async () => {
+    invokeToolStub.rejects(new Error("Tool abl_debug_listing was not contributed"));
+
+    let changeCallback: ((editor: any) => void) | undefined;
+    fakeVscode.window.onDidChangeActiveTextEditor = (cb: any) => {
+      changeCallback = cb;
+      return { dispose: sinon.spy() };
+    };
+
+    const generatedUri = vscode.Uri.file("C:\\temp\\order.p.debug-listing");
+    fakeVscode.commands.executeCommand = sinon.stub().callsFake(async () => {
+      setImmediate(() =>
+        changeCallback?.({
+          document: { uri: generatedUri, getText: () => "listing text" },
+        })
+      );
+    });
+
+    const result = await tools
+      .get("debug_listing_abl")!
+      .handler({ path: "C:\\work\\src\\order.p" });
+
+    assert.strictEqual(result.isError, undefined, "Expected success result");
+    assert.strictEqual(result.content[0].text, "listing text");
+    assert.strictEqual(
+      fakeVscode.commands.executeCommand.calledWith("abl.generateDebugListing"),
+      true
+    );
+    assert.strictEqual(
+      fakeVscode.window.showTextDocument.calledWith(
+        vscode.Uri.file("C:\\work\\src\\order.p"),
+        { preview: false }
+      ),
+      true
+    );
   });
 
   test("check_syntax_abl falls back to the active ABL editor", async () => {

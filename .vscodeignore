@@ -11,7 +11,6 @@ related/**
 .yarnrc
 vsc-extension-quickstart.md
 vscode-mcp-server.code-workspace
-DEVELOPMENT.md
 Purpose.md
 **/tsconfig.json
 **/eslint.config.mjs

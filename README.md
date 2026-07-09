@@ -15,7 +15,7 @@ The ABL tools bridge to the Language Model tools contributed by the [OpenEdge AB
 
 1. Install the extension from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=cverbiest.vscode-abl-mcp) or clone this repository and run `pnpm install` and `pnpm run bundle` to build it.
 2. Click the **Vscode ABL MCP** status bar item to start the server (or set `vscode-abl-mcp.defaultEnabled`).
-3. Run the **Vscode ABL MCP: Install MCP Config** command (or configure your client manually, see below) to point it at the server.
+3. Run the **VsCode ABL MCP: Install Config for Claude Code, Codex CLI, Gemini CLI** command (or configure your client manually, see below) to point it at the server.
 
 ## Transports
 
@@ -24,7 +24,7 @@ The extension exposes two transports, each independently toggled via settings:
 - **Pipe (default, `vscode-abl-mcp.pipeEnabled`)**: a named pipe on Windows (`\\.\pipe\...`) or a Unix domain socket on Linux/macOS. The path is derived per-workspace (hashed from the workspace folder), so multiple VS Code windows never collide the way a shared TCP port can. Clients that only support stdio-based (`command`/`args`) MCP servers spawn a small bundled proxy (`dist/mcp-pipe-proxy.js`) that forwards stdio to the pipe.
 - **HTTP (opt-in, `vscode-abl-mcp.httpEnabled`)**: streamable HTTP on `http://localhost:3000/mcp` (host/port configurable). Useful for clients that can't spawn a local process, but a shared port can conflict when multiple workspace windows are open.
 
-If both are enabled, the **Install MCP Config** command prefers the pipe transport.
+If both are enabled, the **Install Config** command prefers the pipe transport.
 
 ## ABL Tools
 
@@ -45,9 +45,25 @@ If both are enabled, the **Install MCP Config** command prefers the pipe transpo
     - `path` (optional): Path of the file to process. Defaults to the active editor.
     - `xml` (optional): When `true`, generates XML XREF instead of plain XREF.
 
+- **preprocess_abl**: Runs `COMPILE ... PREPROCESS` and returns the preprocessed output (includes expanded, preprocessor directives resolved).
+
+  - Parameters:
+    - `path` (optional): Path of the file to preprocess. Defaults to the active editor.
+
+- **debug_listing_abl**: Runs `COMPILE ... DEBUG-LISTING` and returns the debug listing — the expanded, line-numbered source used by the AVM at runtime, for mapping runtime line numbers back to source.
+
+  - Parameters:
+    - `path` (optional): Path of the file to process. Defaults to the active editor.
+
 ## Client Configuration
 
-The **Vscode ABL MCP: Install MCP Config** command writes project-local config for Claude Code (`.mcp.json`), Codex CLI (`.codex/config.toml`) and Gemini CLI (`.gemini/settings.json`) automatically, using whichever transport is enabled. Manual setup is also possible:
+The **VsCode ABL MCP: Install Config for Claude Code, Codex CLI, Gemini CLI** command writes project-local config for Claude Code (`.mcp.json`), Codex CLI (`.codex/config.toml`) and Gemini CLI (`.gemini/settings.json`) automatically, using whichever transport is enabled.
+
+### Restart extension host after configuration
+
+Agents frequently ignore newly added MCP config, a restart can help
+
+Manual setup is also possible:
 
 ### Claude Code
 
@@ -198,7 +214,7 @@ Press F5 in VS Code to launch an Extension Development Host. The `related/` fold
 
 ## Attributions
 
-This extension is based on the [VS Code MCP Server](https://github.com/JuehangQin/vscode-mcp-server) extension by Juehang Qin, modified to support ABL.
+This extension is based on the [VS Code MCP Server](https://github.com/juehang/vscode-mcp-server) extension by Juehang Qin, modified to support ABL.
 
 ## Contributing
 
