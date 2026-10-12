@@ -81,6 +81,54 @@ export function getExtensionTerminal(
   return sharedTerminal;
 }
 
+/**
+ * When `autoCreateMcpConfig` is on, creates any missing workspace MCP client
+ * config and refreshes stale entries this extension wrote earlier. Never
+ * throws: a failure here must not stop the server from starting.
+ */
+async function autoCreateMcpConfigIfEnabled(
+  context: vscode.ExtensionContext
+): Promise<void> {
+  const config = vscode.workspace.getConfiguration("vscode-abl-mcp");
+  if (!config.get<boolean>("autoCreateMcpConfig")) {
+    return;
+  }
+  const transport = getTransportConfiguration();
+  if (
+    !vscode.workspace.workspaceFolders?.length ||
+    (!transport.pipe && !transport.http)
+  ) {
+    return;
+  }
+
+  try {
+    const written = await installMcpConfigs({
+      http: transport.http
+        ? {
+            port: config.get<number>("port") || 3000,
+            host: config.get<string>("host") || "127.0.0.1",
+          }
+        : undefined,
+      pipe: transport.pipe
+        ? {
+            path: transport.pipePath!,
+            shimPath: context.asAbsolutePath("dist/mcp-pipe-proxy.js"),
+          }
+        : undefined,
+      auto: true,
+    });
+    if (written.length > 0) {
+      logger.info(`[autoCreateMcpConfig] Wrote: ${written.join(", ")}`);
+    }
+  } catch (error) {
+    logger.error(
+      `[autoCreateMcpConfig] ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+}
+
 function describeTransport(
   port: number,
   transport: TransportConfiguration,
@@ -177,6 +225,7 @@ async function toggleServerState(
       const startTime = Date.now();
 
       await mcpServer.start();
+      await autoCreateMcpConfigIfEnabled(context);
 
       const duration = Date.now() - startTime;
       logger.info(
@@ -275,6 +324,7 @@ export async function activate(context: vscode.ExtensionContext) {
       );
 
       await mcpServer.start();
+      await autoCreateMcpConfigIfEnabled(context);
       logger.info("Vscode ABL MCP started successfully");
     } else {
       logger.info("Vscode ABL MCP is disabled by default");
@@ -346,6 +396,13 @@ export async function activate(context: vscode.ExtensionContext) {
     // Listen for configuration changes to restart server if needed
     const configChangeListener = vscode.workspace.onDidChangeConfiguration(
       async (event) => {
+        if (
+          event.affectsConfiguration("vscode-abl-mcp.autoCreateMcpConfig") &&
+          serverEnabled
+        ) {
+          await autoCreateMcpConfigIfEnabled(context);
+        }
+
         const transportSettingsChanged =
           event.affectsConfiguration("vscode-abl-mcp.pipeEnabled") ||
           event.affectsConfiguration("vscode-abl-mcp.httpEnabled") ||
@@ -389,6 +446,7 @@ export async function activate(context: vscode.ExtensionContext) {
               }
             );
             await mcpServer.start();
+            await autoCreateMcpConfigIfEnabled(context);
             updateStatusBar(port, transportConfig);
 
             vscode.window.showInformationMessage(
