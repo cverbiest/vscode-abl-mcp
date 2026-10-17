@@ -6,6 +6,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-17 (pre-release)
+
 ### Added
 
 - `vscode-abl-mcp.autoCreateMcpConfig` setting: on server start, automatically creates the workspace MCP client config (`.mcp.json`, `.gemini/settings.json`, `.codex/config.toml`) when missing, and refreshes an entry previously written by this extension if its shim/pipe path is stale. Other existing entries are never overwritten.
