@@ -15,22 +15,55 @@ if (!pipePath) {
   process.exit(1);
 }
 
-const socket = net.connect(pipePath);
+const RETRY_INTERVAL_MS = 250;
+const RETRY_TIMEOUT_MS = 30_000;
+const RETRYABLE_CODES = new Set(["ENOENT", "ECONNREFUSED", "EAGAIN"]);
 
-socket.on("connect", () => {
-  process.stdin.pipe(socket);
-  socket.pipe(process.stdout);
-});
+const startedAt = Date.now();
+let connected = false;
+let currentSocket: net.Socket | undefined;
 
-socket.on("error", (error: Error) => {
-  process.stderr.write(`mcp-pipe-proxy: connection error: ${error.message}\n`);
+function fail(message: string): void {
+  process.stderr.write(`mcp-pipe-proxy: ${message}\n`);
   process.exitCode = 1;
-});
+  process.exit(process.exitCode);
+}
 
-socket.on("close", () => {
-  process.exit(process.exitCode ?? 0);
-});
+function connectOnce(): void {
+  const socket = net.connect(pipePath);
+  currentSocket = socket;
+
+  socket.on("connect", () => {
+    connected = true;
+    process.stdin.pipe(socket);
+    socket.pipe(process.stdout);
+  });
+
+  socket.on("error", (error: NodeJS.ErrnoException) => {
+    if (connected) {
+      process.stderr.write(`mcp-pipe-proxy: connection error: ${error.message}\n`);
+      process.exitCode = 1;
+      return;
+    }
+
+    const retryable = error.code !== undefined && RETRYABLE_CODES.has(error.code);
+    if (retryable && Date.now() - startedAt < RETRY_TIMEOUT_MS) {
+      setTimeout(connectOnce, RETRY_INTERVAL_MS);
+      return;
+    }
+
+    fail(`connection error: ${error.message}`);
+  });
+
+  socket.on("close", () => {
+    if (connected) {
+      process.exit(process.exitCode ?? 0);
+    }
+  });
+}
 
 process.stdin.on("error", () => {
-  socket.destroy();
+  currentSocket?.destroy();
 });
+
+connectOnce();

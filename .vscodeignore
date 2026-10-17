@@ -12,6 +12,8 @@ related/**
 vsc-extension-quickstart.md
 vscode-mcp-server.code-workspace
 Purpose.md
+AGENT-TASK-*.md
+CLAUDE.md
 **/tsconfig.json
 **/eslint.config.mjs
 **/*.map

@@ -10,6 +10,15 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - `vscode-abl-mcp.autoCreateMcpConfig` setting: on server start, automatically creates the workspace MCP client config (`.mcp.json`, `.gemini/settings.json`, `.codex/config.toml`) when missing, and refreshes an entry previously written by this extension if its shim/pipe path is stale. Other existing entries are never overwritten.
 
+### Fixed
+
+- `mcp-pipe-proxy` no longer fails permanently when it is spawned before VS Code
+  has created the named pipe / Unix domain socket. It now retries the initial
+  connection (every ~250ms, up to ~30s) on "not there yet" errors (`ENOENT`,
+  `ECONNREFUSED`, `EAGAIN`), then falls back to the previous fail-fast behavior.
+  A connection that was established and later closes still exits immediately
+  without retrying.
+
 ## [0.4.3] - 2026-07-09
 
 ### Added

@@ -5,7 +5,7 @@ node_modules
 *.vsix
 .serena
 plans
-CLAUDE.mdrelated/
+AGENT-TASK-*.md
 related
 vsc-mcp/
 mcp-client/.env
