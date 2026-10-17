@@ -184,6 +184,7 @@ Besides the ABL tools, the server exposes VS Code workspace capabilities, each c
 ## Extension Settings
 
 - `vscode-abl-mcp.pipeEnabled`: Enable the named pipe / Unix domain socket transport (default: true)
+- `vscode-abl-mcp.autoCreateMcpConfig`: On server start, automatically create the workspace MCP client config (`.mcp.json`, `.gemini/settings.json`, `.codex/config.toml`) if missing, and refresh an entry this extension wrote earlier if its shim/pipe path went stale (e.g. after an extension upgrade). Hand-edited entries are never overwritten (default: false)
 - `vscode-abl-mcp.httpEnabled`: Enable the HTTP transport on a fixed TCP port (default: false)
 - `vscode-abl-mcp.port`: The port number for the MCP server, used only when the HTTP transport is enabled (default: 3000)
 - `vscode-abl-mcp.host`: Host address for the MCP server, used only when the HTTP transport is enabled (default: 127.0.0.1)

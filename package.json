@@ -26,6 +26,11 @@
           "default": true,
           "description": "Enable the named pipe (Windows) / Unix domain socket (Linux/macOS) MCP transport. Recommended: each workspace gets its own pipe derived from its folder path, so multiple VS Code windows never conflict the way a shared TCP port can."
         },
+        "vscode-abl-mcp.autoCreateMcpConfig": {
+          "type": "boolean",
+          "default": false,
+          "description": "When the MCP server starts, automatically create the workspace MCP client config (.mcp.json, .gemini/settings.json, .codex/config.toml) for any file or vscode-abl entry that doesn't exist. An existing entry written by this extension (it references mcp-pipe-proxy.js) is refreshed if its extension path or pipe path is out of date; any other existing entry is left untouched."
+        },
         "vscode-abl-mcp.httpEnabled": {
           "type": "boolean",
           "default": false,
