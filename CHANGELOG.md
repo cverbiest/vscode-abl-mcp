@@ -9,6 +9,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Added
 
 - `vscode-abl-mcp.autoCreateMcpConfig` setting: on server start, automatically creates the workspace MCP client config (`.mcp.json`, `.gemini/settings.json`, `.codex/config.toml`) when missing, and refreshes an entry previously written by this extension if its shim/pipe path is stale. Other existing entries are never overwritten.
+- `listing_abl` MCP tool: runs `COMPILE ... LISTING` on an ABL file and returns the listing (block structure, buffer scopes, transaction blocks). Uses the `abl_listing` Language Model tool (vscode-abl 1.36.0+) and falls back to the `abl.generateListing` command on older versions.
+
+### Changed
+
+- Dependency update: `@modelcontextprotocol/sdk` 1.32.1, `express` 5.3.0, `zod` 4.6.7.
 
 ### Fixed
 

@@ -1,4 +1,5 @@
 allowBuilds:
+  '@modelcontextprotocol/inspector': false
   '@vscode/vsce-sign': true
   esbuild: true
   keytar: true
