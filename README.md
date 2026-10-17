@@ -55,6 +55,11 @@ If both are enabled, the **Install Config** command prefers the pipe transport.
   - Parameters:
     - `path` (optional): Path of the file to process. Defaults to the active editor.
 
+- **listing_abl**: Runs `COMPILE ... LISTING` and returns the listing — the expanded source with block structure, buffer scopes and transaction blocks.
+
+  - Parameters:
+    - `path` (optional): Path of the file to process. Defaults to the active editor.
+
 ## Client Configuration
 
 The **VsCode ABL MCP: Install Config for Claude Code, Codex CLI, Gemini CLI** command writes project-local config for Claude Code (`.mcp.json`), Codex CLI (`.codex/config.toml`) and Gemini CLI (`.gemini/settings.json`) automatically, using whichever transport is enabled.

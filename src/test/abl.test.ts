@@ -64,6 +64,7 @@ suite("ABL Bridge Tools Test Suite", () => {
           { name: "abl_xref" },
           { name: "abl_preprocess" },
           { name: "abl_debug_listing" },
+          { name: "abl_listing" },
         ],
         invokeTool: invokeToolStub,
       },
@@ -83,17 +84,18 @@ suite("ABL Bridge Tools Test Suite", () => {
     sinon.restore();
   });
 
-  test("Registers all five ABL bridge tools", () => {
+  test("Registers all six ABL bridge tools", () => {
     assert.deepStrictEqual(
       [...tools.keys()].sort(),
       [
         "check_syntax_abl",
         "compile_abl",
         "debug_listing_abl",
+        "listing_abl",
         "preprocess_abl",
         "xref_abl",
       ],
-      "Expected the five ABL bridge tools to be registered"
+      "Expected the six ABL bridge tools to be registered"
     );
   });
 
@@ -153,42 +155,64 @@ suite("ABL Bridge Tools Test Suite", () => {
     );
   });
 
-  test("debug_listing_abl falls back to the abl.generateDebugListing command when the LM tool is unavailable", async () => {
-    invokeToolStub.rejects(new Error("Tool abl_debug_listing was not contributed"));
-
-    let changeCallback: ((editor: any) => void) | undefined;
-    fakeVscode.window.onDidChangeActiveTextEditor = (cb: any) => {
-      changeCallback = cb;
-      return { dispose: sinon.spy() };
-    };
-
-    const generatedUri = vscode.Uri.file("C:\\temp\\order.p.debug-listing");
-    fakeVscode.commands.executeCommand = sinon.stub().callsFake(async () => {
-      setImmediate(() =>
-        changeCallback?.({
-          document: { uri: generatedUri, getText: () => "listing text" },
-        })
-      );
-    });
-
-    const result = await tools
-      .get("debug_listing_abl")!
+  test("listing_abl invokes the abl_listing LM tool with the file URI", async () => {
+    await tools
+      .get("listing_abl")!
       .handler({ path: "C:\\work\\src\\order.p" });
 
-    assert.strictEqual(result.isError, undefined, "Expected success result");
-    assert.strictEqual(result.content[0].text, "listing text");
+    const [toolName, options] = invokeToolStub.firstCall.args;
+    assert.strictEqual(toolName, "abl_listing");
     assert.strictEqual(
-      fakeVscode.commands.executeCommand.calledWith("abl.generateDebugListing"),
-      true
-    );
-    assert.strictEqual(
-      fakeVscode.window.showTextDocument.calledWith(
-        vscode.Uri.file("C:\\work\\src\\order.p"),
-        { preview: false }
-      ),
-      true
+      options.input.fileUri,
+      vscode.Uri.file("C:\\work\\src\\order.p").toString()
     );
   });
+
+  // Older vscode-abl versions (< 1.36.0) don't contribute these LM tools;
+  // the bridge then drives the extension's command and captures its output.
+  for (const [mcpTool, lmTool, commandId] of [
+    ["debug_listing_abl", "abl_debug_listing", "abl.generateDebugListing"],
+    ["listing_abl", "abl_listing", "abl.generateListing"],
+  ]) {
+    test(`${mcpTool} falls back to the ${commandId} command when the LM tool is unavailable`, async () => {
+      invokeToolStub.rejects(new Error(`Tool ${lmTool} was not contributed`));
+
+      let changeCallback: ((editor: any) => void) | undefined;
+      fakeVscode.window.onDidChangeActiveTextEditor = (cb: any) => {
+        changeCallback = cb;
+        return { dispose: sinon.spy() };
+      };
+
+      const generatedUri = vscode.Uri.file("C:\\temp\\order.p.listing");
+      fakeVscode.commands.executeCommand = sinon.stub().callsFake(async () => {
+        setImmediate(() =>
+          changeCallback?.({
+            document: { uri: generatedUri, getText: () => "listing text" },
+          })
+        );
+      });
+
+      const result = await tools
+        .get(mcpTool)!
+        .handler({ path: "C:\\work\\src\\order.p" });
+
+      assert.strictEqual(result.isError, undefined, "Expected success result");
+      assert.strictEqual(result.content[0].text, "listing text");
+      assert.strictEqual(
+        fakeVscode.commands.executeCommand.calledWith(commandId),
+        true
+      );
+      // Compare by string: the bridge calls uri.toString(), which caches
+      // internal state on the Uri and breaks a deep-equality match.
+      const [shownUri, shownOptions] =
+        fakeVscode.window.showTextDocument.firstCall.args;
+      assert.strictEqual(
+        shownUri.toString(),
+        vscode.Uri.file("C:\\work\\src\\order.p").toString()
+      );
+      assert.deepStrictEqual(shownOptions, { preview: false });
+    });
+  }
 
   test("check_syntax_abl falls back to the active ABL editor", async () => {
     const editorUri = vscode.Uri.file("C:\\work\\src\\active.p");

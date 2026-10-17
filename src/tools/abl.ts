@@ -216,10 +216,11 @@ async function runAblTool(
  * Registers MCP ABL-related tools with the server.
  * These bridge to the Language Model tools contributed by the
  * RiversideSoftware.openedge-abl-lsp extension (abl_compile,
- * abl_check_syntax, abl_xref). abl_preprocess/abl_debug_listing aren't
- * contributed as LM tools by current extension versions, so those two
- * fall back to driving the extension's abl.preprocess/
- * abl.generateDebugListing commands and capturing the editor they open.
+ * abl_check_syntax, abl_xref, abl_preprocess, abl_debug_listing,
+ * abl_listing). The last three are only contributed as LM tools since
+ * 1.36.0, so on older extension versions they fall back to driving the
+ * extension's abl.preprocess/abl.generateDebugListing/abl.generateListing
+ * commands and capturing the editor they open.
  * @param server MCP server instance
  */
 export function registerAblTools(server: McpServer): void {
@@ -333,6 +334,32 @@ export function registerAblTools(server: McpServer): void {
         filePath,
         {},
         "abl.generateDebugListing"
+      )
+  );
+
+  server.registerTool(
+    "listing_abl",
+    {
+      description: `Runs COMPILE ... LISTING on an OpenEdge ABL source file using the ABL language server and returns the listing (the expanded source with include files, line numbers, block structure, buffer scopes and transaction blocks).
+
+        WHEN TO USE: To inspect block and buffer scoping, or where transactions start and end, e.g. when investigating record locking or unexpected transaction scope.
+        If path is omitted, the currently active ABL editor is used.`,
+      inputSchema: {
+        path: z
+          .string()
+          .optional()
+          .describe(
+            "Path of the ABL file to generate a listing for (workspace-relative or absolute). If omitted, the active editor is used."
+          ),
+      },
+    },
+    async ({ path: filePath }): Promise<CallToolResult> =>
+      runAblTool(
+        "listing_abl",
+        "abl_listing",
+        filePath,
+        {},
+        "abl.generateListing"
       )
   );
 }
