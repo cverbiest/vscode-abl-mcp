@@ -130,7 +130,9 @@ async function invokeAblCommand(
     });
 
     const timer = setTimeout(() => {
-      if (settled) return;
+      if (settled) {
+        return;
+      }
       settled = true;
       disposable.dispose();
       reject(
@@ -142,7 +144,9 @@ async function invokeAblCommand(
     }, timeoutMs);
 
     vscode.commands.executeCommand(commandId).then(undefined, (error) => {
-      if (settled) return;
+      if (settled) {
+        return;
+      }
       settled = true;
       clearTimeout(timer);
       disposable.dispose();
