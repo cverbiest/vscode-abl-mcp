@@ -80,9 +80,10 @@ With the MCP Inspector: `pnpm dlx @modelcontextprotocol/inspector`, transport
 
 With Claude Code: `claude mcp add --transport http vscode-abl http://localhost:3000/mcp`,
 or run the **VsCode ABL MCP: Install Config for Claude Code, Codex CLI, Gemini CLI**
-command (`vscode-abl-mcp.installMcpConfig`) from the Command Palette, which
-writes/updates `.mcp.json`, `.gemini/settings.json` and `.codex/config.toml`
-in the workspace root with the currently configured port and host.
+command (`vscode-abl-mcp.installMcpConfig`) from the Command Palette, which asks
+which clients to set up and writes/updates their config (`.mcp.json`,
+`.gemini/settings.json`, `.codex/config.toml`) in the workspace root with the
+currently configured transport.
 
 Or plain curl (note the double `Accept` header):
 
@@ -163,3 +164,34 @@ without OpenEdge or the ABL extension installed.
    devDependency already pinned in `package.json` — `pnpm dlx vsce` fetches
    the old, deprecated, unscoped `vsce` package from npm instead.
 4. `pnpm exec vsce publish --no-dependencies` (publisher `cverbiest`).
+
+### Pre-release
+
+The Marketplace has a separate pre-release channel: users opt in with
+**Switch to Pre-Release Version** on the extension page and from then on get
+whichever is the highest published version, pre-release or not.
+
+Versioning — the Marketplace only accepts `major.minor.patch`, so semver
+suffixes like `0.5.0-beta.1` are rejected. Instead, by convention (the one
+VS Code recommends):
+
+- **odd minor = pre-release** (`0.5.0`, `0.5.1`, …),
+- **even minor = release** (`0.6.0`).
+
+The next release must have a **higher** version than every pre-release, or
+pre-release users never get moved back to it.
+
+Steps — same as a release, with `--pre-release` on both vsce calls:
+
+1. Bump `version` in `package.json` (odd minor). In `CHANGELOG.md` move the
+   `## [Unreleased]` entries under `## [x.y.z] - YYYY-MM-DD (pre-release)`.
+2. `pnpm test`
+3. `pnpm exec vsce package --pre-release --no-dependencies` and smoke-test the
+   VSIX: `code --install-extension vscode-abl-mcp-<version>.vsix`.
+4. `pnpm exec vsce publish --pre-release --no-dependencies`.
+
+Promoting to a release: bump to the next even minor (e.g. `0.5.2` → `0.6.0`),
+add a `CHANGELOG.md` entry that points back to the pre-release entries it
+includes, and follow the normal release steps above (no `--pre-release`).
+A pre-release version cannot be re-published as a release under the same
+number.

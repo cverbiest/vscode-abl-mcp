@@ -3,6 +3,23 @@ import { logger } from "./utils/logger";
 
 const SERVER_NAME = "vscode-abl";
 
+/** MCP clients this extension can write project config for. */
+export const MCP_CLIENTS = ["claude", "gemini", "codex"] as const;
+export type McpClient = (typeof MCP_CLIENTS)[number];
+
+export const MCP_CLIENT_LABELS: Record<McpClient, string> = {
+  claude: "Claude Code (.mcp.json)",
+  gemini: "Gemini CLI (.gemini/settings.json)",
+  codex: "Codex CLI (.codex/config.toml)",
+};
+
+/** Keeps the known client ids from a setting value, dropping anything else. */
+export function toMcpClients(value: unknown): McpClient[] {
+  return Array.isArray(value)
+    ? MCP_CLIENTS.filter((client) => value.includes(client))
+    : [];
+}
+
 export interface HttpTransportOptions {
   port: number;
   host: string;
@@ -25,6 +42,8 @@ export interface InstallMcpConfigOptions {
    * Any other existing entry is left untouched.
    */
   auto?: boolean;
+  /** Clients to write config for; all of them when omitted. */
+  clients?: readonly McpClient[];
 }
 
 const SHIM_FILE_NAME = "mcp-pipe-proxy.js";
@@ -184,8 +203,8 @@ function shouldAutoWriteToml(
 }
 
 /**
- * Writes/updates project-local MCP client config for Claude Code, Codex CLI
- * and Gemini CLI so they can reach this extension's MCP server. When both
+ * Writes/updates project-local MCP client config for the selected clients
+ * (Claude Code, Gemini CLI, Codex CLI) so they can reach this extension's MCP server. When both
  * transports are enabled, the pipe transport is used since it can't collide
  * across workspace windows the way a shared HTTP port can.
  * Returns the list of file paths written.
@@ -199,51 +218,58 @@ export async function installMcpConfigs(
   }
   const root = folders[0].uri;
   const entry = pickServerEntry(options);
+  const clients = options.clients ?? MCP_CLIENTS;
   const written: string[] = [];
 
   // Claude Code: .mcp.json at the project root.
-  const claudeUri = vscode.Uri.joinPath(root, ".mcp.json");
-  const claudeWritten = await upsertJsonMcpServer(
-    claudeUri,
-    SERVER_NAME,
-    "url" in entry
-      ? { type: "http", url: entry.url }
-      : { type: "stdio", command: entry.command, args: entry.args },
-    options.auto
-  );
-  if (claudeWritten) {
-    written.push(claudeUri.fsPath);
+  if (clients.includes("claude")) {
+    const claudeUri = vscode.Uri.joinPath(root, ".mcp.json");
+    const claudeWritten = await upsertJsonMcpServer(
+      claudeUri,
+      SERVER_NAME,
+      "url" in entry
+        ? { type: "http", url: entry.url }
+        : { type: "stdio", command: entry.command, args: entry.args },
+      options.auto
+    );
+    if (claudeWritten) {
+      written.push(claudeUri.fsPath);
+    }
   }
 
   // Gemini CLI: .gemini/settings.json at the project root.
-  const geminiDir = vscode.Uri.joinPath(root, ".gemini");
-  await ensureDir(geminiDir);
-  const geminiUri = vscode.Uri.joinPath(geminiDir, "settings.json");
-  const geminiWritten = await upsertJsonMcpServer(
-    geminiUri,
-    SERVER_NAME,
-    "url" in entry
-      ? { httpUrl: entry.url }
-      : { command: entry.command, args: entry.args },
-    options.auto
-  );
-  if (geminiWritten) {
-    written.push(geminiUri.fsPath);
+  if (clients.includes("gemini")) {
+    const geminiDir = vscode.Uri.joinPath(root, ".gemini");
+    await ensureDir(geminiDir);
+    const geminiUri = vscode.Uri.joinPath(geminiDir, "settings.json");
+    const geminiWritten = await upsertJsonMcpServer(
+      geminiUri,
+      SERVER_NAME,
+      "url" in entry
+        ? { httpUrl: entry.url }
+        : { command: entry.command, args: entry.args },
+      options.auto
+    );
+    if (geminiWritten) {
+      written.push(geminiUri.fsPath);
+    }
   }
 
   // Codex CLI: .codex/config.toml at the project root (trusted projects only).
-  const codexDir = vscode.Uri.joinPath(root, ".codex");
-  await ensureDir(codexDir);
-  const codexUri = vscode.Uri.joinPath(codexDir, "config.toml");
-  const existingToml = (await readFileIfExists(codexUri)) ?? "";
-  if (!options.auto || shouldAutoWriteToml(existingToml, SERVER_NAME, entry)) {
-    await writeFile(codexUri, upsertTomlMcpServer(existingToml, SERVER_NAME, entry));
-    written.push(codexUri.fsPath);
+  if (clients.includes("codex")) {
+    const codexDir = vscode.Uri.joinPath(root, ".codex");
+    await ensureDir(codexDir);
+    const codexUri = vscode.Uri.joinPath(codexDir, "config.toml");
+    const existingToml = (await readFileIfExists(codexUri)) ?? "";
+    if (!options.auto || shouldAutoWriteToml(existingToml, SERVER_NAME, entry)) {
+      await writeFile(codexUri, upsertTomlMcpServer(existingToml, SERVER_NAME, entry));
+      written.push(codexUri.fsPath);
+    }
   }
 
   const target = "url" in entry ? entry.url : `${entry.command} ${entry.args.join(" ")}`;
   logger.info(
-    `[installMcpConfigs] Wrote MCP config for Claude Code, Gemini CLI and Codex CLI targeting ${target}`
+    `[installMcpConfigs] Checked MCP config for ${clients.join(", ")} targeting ${target}`
   );
   return written;
 }

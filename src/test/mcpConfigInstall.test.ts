@@ -240,6 +240,18 @@ suite("MCP Config Install (autoCreateMcpConfig) Test Suite", () => {
     assert.deepStrictEqual(json.mcpServers["vscode-abl"].args, [SHIM_V1, PIPE]);
   });
 
+  test("writes only the selected clients", async () => {
+    const written = await installMcpConfigs({
+      ...pipeOptions(SHIM_V1),
+      auto: true,
+      clients: ["claude"],
+    });
+
+    assert.deepStrictEqual(written, [mcpJson()]);
+    assert.strictEqual(fs.existsSync(path.dirname(geminiJson())), false);
+    assert.strictEqual(fs.existsSync(path.dirname(codexToml())), false);
+  });
+
   test("manual (non-auto) install still overwrites a hand-edited entry", async () => {
     writeWorkspaceFile(
       mcpJson(),

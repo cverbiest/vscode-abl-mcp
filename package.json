@@ -19,39 +19,73 @@
   "main": "./dist/extension.js",
   "contributes": {
     "configuration": {
-      "title": "MCP Server",
+      "title": "OpenEdge ABL Companion MCP",
       "properties": {
+        "vscode-abl-mcp.autoStart": {
+          "type": "string",
+          "enum": [
+            "never",
+            "always",
+            "folder",
+            "workspace",
+            "openedgeProject"
+          ],
+          "enumDescriptions": [
+            "Only start the server from the status bar item.",
+            "Start in every window, including windows with nothing open.",
+            "Start when a single folder is opened (File > Open Folder), not for a .code-workspace.",
+            "Start when a .code-workspace file is opened (single or multi-root).",
+            "Start when a workspace folder has openedge-project.json at its root (single folder or workspace)."
+          ],
+          "default": "never",
+          "markdownDescription": "When the MCP server starts on its own. Clicking the status bar item overrides this for the current workspace and is remembered; run **Use Auto-Start Setting for This Workspace** to undo that.",
+          "order": 1
+        },
+        "vscode-abl-mcp.autoCreateMcpConfig": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "claude",
+              "gemini",
+              "codex"
+            ],
+            "enumDescriptions": [
+              "Claude Code: .mcp.json",
+              "Gemini CLI: .gemini/settings.json",
+              "Codex CLI: .codex/config.toml"
+            ]
+          },
+          "uniqueItems": true,
+          "default": [],
+          "markdownDescription": "MCP clients whose workspace config is created automatically when the server starts. Empty means off. A missing file or `vscode-abl` entry is created; an entry written earlier by this extension (it references `mcp-pipe-proxy.js`) is refreshed when its extension or pipe path is out of date; any other existing entry is left untouched.",
+          "order": 2
+        },
         "vscode-abl-mcp.pipeEnabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable the named pipe (Windows) / Unix domain socket (Linux/macOS) MCP transport. Recommended: each workspace gets its own pipe derived from its folder path, so multiple VS Code windows never conflict the way a shared TCP port can."
-        },
-        "vscode-abl-mcp.autoCreateMcpConfig": {
-          "type": "boolean",
-          "default": false,
-          "description": "When the MCP server starts, automatically create the workspace MCP client config (.mcp.json, .gemini/settings.json, .codex/config.toml) for any file or vscode-abl entry that doesn't exist. An existing entry written by this extension (it references mcp-pipe-proxy.js) is refreshed if its extension path or pipe path is out of date; any other existing entry is left untouched."
+          "description": "Enable the named pipe (Windows) / Unix domain socket (Linux/macOS) MCP transport. Recommended: each workspace gets its own pipe derived from its folder path, so multiple VS Code windows never conflict the way a shared TCP port can.",
+          "order": 3
         },
         "vscode-abl-mcp.httpEnabled": {
           "type": "boolean",
           "default": false,
-          "description": "Enable the HTTP MCP transport on a fixed TCP port. Useful for clients that can't use a stdio-based server, but a shared port can conflict when multiple workspace windows are open."
+          "description": "Enable the HTTP MCP transport on a fixed TCP port. Useful for clients that can't use a stdio-based server, but a shared port can conflict when multiple workspace windows are open.",
+          "order": 4
+        },
+        "vscode-abl-mcp.host": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Host address for the MCP server (used only when the HTTP transport is enabled)",
+          "order": 5
         },
         "vscode-abl-mcp.port": {
           "type": "number",
           "default": 3000,
           "minimum": 1024,
           "maximum": 65535,
-          "description": "The port number for the MCP server (used only when the HTTP transport is enabled)"
-        },
-        "vscode-abl-mcp.host": {
-          "type": "string",
-          "default": "127.0.0.1",
-          "description": "Host address for the MCP server (used only when the HTTP transport is enabled)"
-        },
-        "vscode-abl-mcp.defaultEnabled": {
-          "type": "boolean",
-          "default": false,
-          "description": "Whether the MCP server should be enabled by default on VS Code startup"
+          "description": "The port number for the MCP server (used only when the HTTP transport is enabled)",
+          "order": 6
         },
         "vscode-abl-mcp.enabledTools": {
           "type": "object",
@@ -89,7 +123,8 @@
               "description": "Enable ABL tools"
             }
           },
-          "description": "Configure which MCP tools are enabled"
+          "description": "Configure which MCP tools are enabled",
+          "order": 7
         }
       }
     },
@@ -102,6 +137,11 @@
       {
         "command": "vscode-abl-mcp.toggleServer",
         "title": "Toggle Server",
+        "category": "VsCode ABL MCP"
+      },
+      {
+        "command": "vscode-abl-mcp.resetServerState",
+        "title": "Use Auto-Start Setting for This Workspace",
         "category": "VsCode ABL MCP"
       },
       {

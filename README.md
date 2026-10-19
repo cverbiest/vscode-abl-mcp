@@ -14,7 +14,7 @@ The ABL tools bridge to the Language Model tools contributed by the [OpenEdge AB
 ## Installation
 
 1. Install the extension from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=cverbiest.vscode-abl-mcp) or clone this repository and run `pnpm install` and `pnpm run bundle` to build it.
-2. Click the **Vscode ABL MCP** status bar item to start the server (or set `vscode-abl-mcp.defaultEnabled`).
+2. Click the **Vscode ABL MCP** status bar item to start the server (or set `vscode-abl-mcp.autoStart`, e.g. to `openedgeProject`).
 3. Run the **VsCode ABL MCP: Install Config for Claude Code, Codex CLI, Gemini CLI** command (or configure your client manually, see below) to point it at the server.
 
 ## Transports
@@ -62,7 +62,7 @@ If both are enabled, the **Install Config** command prefers the pipe transport.
 
 ## Client Configuration
 
-The **VsCode ABL MCP: Install Config for Claude Code, Codex CLI, Gemini CLI** command writes project-local config for Claude Code (`.mcp.json`), Codex CLI (`.codex/config.toml`) and Gemini CLI (`.gemini/settings.json`) automatically, using whichever transport is enabled.
+The **VsCode ABL MCP: Install Config for Claude Code, Codex CLI, Gemini CLI** command asks which clients to set up (Claude Code: `.mcp.json`, Codex CLI: `.codex/config.toml`, Gemini CLI: `.gemini/settings.json`) and writes project-local config for them, using whichever transport is enabled. The clients selected in `autoCreateMcpConfig` are preselected; with none selected, all three are.
 
 ### Restart extension host after configuration
 
@@ -188,12 +188,19 @@ Besides the ABL tools, the server exposes VS Code workspace capabilities, each c
 
 ## Extension Settings
 
+- `vscode-abl-mcp.autoStart`: When the server starts on its own (default: `never`):
+  - `never`: only from the status bar item
+  - `always`: in every window, including windows with nothing open
+  - `folder`: when a single folder is opened (File > Open Folder)
+  - `workspace`: when a `.code-workspace` file is opened (single or multi-root)
+  - `openedgeProject`: when a workspace folder has `openedge-project.json` at its root
+
+  Clicking the status bar item overrides this for the current workspace, and the choice is remembered. Run **VsCode ABL MCP: Use Auto-Start Setting for This Workspace** to go back to the setting.
+- `vscode-abl-mcp.autoCreateMcpConfig`: The MCP clients (`claude`, `gemini`, `codex`) whose workspace config is created automatically on server start (default: none). For each selected client, the config (`.mcp.json`, `.gemini/settings.json`, `.codex/config.toml`) is created if missing, and refresh an entry this extension wrote earlier if its shim/pipe path went stale (e.g. after an extension upgrade). Hand-edited entries are never overwritten
 - `vscode-abl-mcp.pipeEnabled`: Enable the named pipe / Unix domain socket transport (default: true)
-- `vscode-abl-mcp.autoCreateMcpConfig`: On server start, automatically create the workspace MCP client config (`.mcp.json`, `.gemini/settings.json`, `.codex/config.toml`) if missing, and refresh an entry this extension wrote earlier if its shim/pipe path went stale (e.g. after an extension upgrade). Hand-edited entries are never overwritten (default: false)
 - `vscode-abl-mcp.httpEnabled`: Enable the HTTP transport on a fixed TCP port (default: false)
-- `vscode-abl-mcp.port`: The port number for the MCP server, used only when the HTTP transport is enabled (default: 3000)
 - `vscode-abl-mcp.host`: Host address for the MCP server, used only when the HTTP transport is enabled (default: 127.0.0.1)
-- `vscode-abl-mcp.defaultEnabled`: Whether the MCP server should be enabled by default on VS Code startup
+- `vscode-abl-mcp.port`: The port number for the MCP server, used only when the HTTP transport is enabled (default: 3000)
 - `vscode-abl-mcp.enabledTools`: Configure which tool categories are enabled (file, edit, shell, diagnostics, symbol, abl)
 
 **Selective Tool Configuration**: Useful for coding agents that already have certain capabilities. For example, with Claude Code you might disable the file/edit/shell tools and only enable the abl and symbol tools, adding ABL compilation and VS Code symbol search without duplicating tools the agent already has.

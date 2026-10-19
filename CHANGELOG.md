@@ -10,11 +10,21 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 
-- `vscode-abl-mcp.autoCreateMcpConfig` setting: on server start, automatically creates the workspace MCP client config (`.mcp.json`, `.gemini/settings.json`, `.codex/config.toml`) when missing, and refreshes an entry previously written by this extension if its shim/pipe path is stale. Other existing entries are never overwritten.
+- `vscode-abl-mcp.autoCreateMcpConfig` setting: on server start, automatically creates the workspace MCP client config for the clients you select (`claude`: `.mcp.json`, `gemini`: `.gemini/settings.json`, `codex`: `.codex/config.toml`) when missing, and refreshes an entry previously written by this extension if its shim/pipe path is stale. Other existing entries are never overwritten. Thanks to [@adsbhatial](https://github.com/adsbhatial) for contributing this ([#2](https://github.com/cverbiest/vscode-abl-mcp/pull/2)).
 - `listing_abl` MCP tool: runs `COMPILE ... LISTING` on an ABL file and returns the listing (block structure, buffer scopes, transaction blocks). Uses the `abl_listing` Language Model tool (vscode-abl 1.36.0+) and falls back to the `abl.generateListing` command on older versions.
+- `vscode-abl-mcp.autoStart` setting: choose when the server starts on its own — `never` (default), `always`, `folder` (single folder opened), `workspace` (`.code-workspace` opened) or `openedgeProject` (a workspace folder contains `openedge-project.json`).
+- **VsCode ABL MCP: Use Auto-Start Setting for This Workspace** command: forget the status bar toggle for this workspace.
 
 ### Changed
 
+- **Install Config for Claude Code, Codex CLI, Gemini CLI** now asks which clients to write config for, instead of always writing all three.
+- The status bar toggle is now remembered **per workspace** instead of globally, and overrides `autoStart` there. Previously one click turned the server on (or off) in every window. The old global choice is no longer read: if you relied on it, set `autoStart`.
+- Settings section renamed from "MCP Server" to "OpenEdge ABL Companion MCP". The setting IDs (`vscode-abl-mcp.*`) are unchanged.
+- Settings are listed in a fixed order: start behaviour first, then the pipe transport, then the HTTP transport with its host and port, then the tools.
+
+### Removed
+
+- `vscode-abl-mcp.defaultEnabled`, replaced by `autoStart`. If you had it set to `true`, set `autoStart` to `always` for the same behaviour.
 - Dependency update: `@modelcontextprotocol/sdk` 1.32.1, `express` 5.3.0, `zod` 4.6.7.
 
 ### Fixed

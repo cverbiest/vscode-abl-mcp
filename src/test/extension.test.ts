@@ -3,6 +3,7 @@ import * as sinon from "sinon";
 import * as vscode from "vscode";
 import * as proxyquireLib from "proxyquire";
 import { createMockContext } from "./testUtils";
+import * as mcpConfigInstall from "../mcpConfigInstall";
 
 // Configure proxyquire
 const proxyquire = proxyquireLib.noPreserveCache().noCallThru();
@@ -52,7 +53,7 @@ suite("Extension Test Suite", () => {
     // Mock configuration - server enabled by default so activation starts it
     const configGet = sinon.stub();
     configGet.withArgs("port").returns(4321);
-    configGet.withArgs("defaultEnabled").returns(true);
+    configGet.withArgs("autoStart").returns("always");
     workspaceConfig = { get: configGet };
     getConfigurationStub = sinon
       .stub(vscode.workspace, "getConfiguration")
@@ -210,7 +211,10 @@ suite("Extension autoCreateMcpConfig Test Suite", () => {
 
     extension = proxyquire("../extension", {
       "./server": { MCPServer: serverConstructorStub },
-      "./mcpConfigInstall": { installMcpConfigs: installMcpConfigsStub },
+      "./mcpConfigInstall": {
+        ...mcpConfigInstall,
+        installMcpConfigs: installMcpConfigsStub,
+      },
       // The real logger is a shared singleton that the "Deactivate" test above
       // disposes, so any later use of it throws "Channel has been closed".
       "./utils/logger": {
@@ -227,8 +231,8 @@ suite("Extension autoCreateMcpConfig Test Suite", () => {
     // Defaults: server enabled, setting on, pipe transport (its default) enabled
     settings = {
       port: 4321,
-      defaultEnabled: true,
-      autoCreateMcpConfig: true,
+      autoStart: "always",
+      autoCreateMcpConfig: ["claude", "gemini", "codex"],
     };
     workspaceFolders = [
       { uri: vscode.Uri.file("C:\\ws\\project"), name: "project", index: 0 },
@@ -264,11 +268,11 @@ suite("Extension autoCreateMcpConfig Test Suite", () => {
   });
 
   test("Creates the MCP config when the setting is turned on while the server is running", async () => {
-    settings.autoCreateMcpConfig = false;
+    settings.autoCreateMcpConfig = [];
     await extension.activate(context);
     assert.strictEqual(installMcpConfigsStub.called, false);
 
-    settings.autoCreateMcpConfig = true;
+    settings.autoCreateMcpConfig = ["claude", "gemini", "codex"];
     await configListener(changeEvent("vscode-abl-mcp.autoCreateMcpConfig"));
 
     assert.strictEqual(installMcpConfigsStub.calledOnce, true);
@@ -291,7 +295,7 @@ suite("Extension autoCreateMcpConfig Test Suite", () => {
   });
 
   test("Does not create the config on a setting change when the server is disabled", async () => {
-    settings.defaultEnabled = false;
+    settings.autoStart = "never";
     await extension.activate(context);
 
     await configListener(changeEvent("vscode-abl-mcp.autoCreateMcpConfig"));
@@ -303,7 +307,7 @@ suite("Extension autoCreateMcpConfig Test Suite", () => {
     await extension.activate(context);
     installMcpConfigsStub.resetHistory();
 
-    settings.autoCreateMcpConfig = false;
+    settings.autoCreateMcpConfig = [];
     await configListener(changeEvent("vscode-abl-mcp.autoCreateMcpConfig"));
 
     assert.strictEqual(installMcpConfigsStub.called, false);
@@ -360,7 +364,7 @@ suite("Extension autoCreateMcpConfig Test Suite", () => {
   });
 
   test("Does nothing when the setting is off", async () => {
-    settings.autoCreateMcpConfig = false;
+    settings.autoCreateMcpConfig = [];
 
     await extension.activate(context);
 
@@ -376,7 +380,7 @@ suite("Extension autoCreateMcpConfig Test Suite", () => {
   });
 
   test("Does nothing when the server is disabled", async () => {
-    settings.defaultEnabled = false;
+    settings.autoStart = "never";
 
     await extension.activate(context);
 
@@ -398,6 +402,91 @@ suite("Extension autoCreateMcpConfig Test Suite", () => {
     await extension.activate(context);
 
     assert.strictEqual(installMcpConfigsStub.called, false);
+  });
+
+  test("Auto-creates config only for the selected clients", async () => {
+    settings.autoCreateMcpConfig = ["claude"];
+
+    await extension.activate(context);
+
+    assert.deepStrictEqual(installMcpConfigsStub.firstCall.args[0].clients, ["claude"]);
+  });
+
+  test("Install Config command writes only the clients picked in the quick pick", async () => {
+    settings.autoCreateMcpConfig = ["claude"];
+    const showQuickPick = sinon
+      .stub(vscode.window, "showQuickPick")
+      .callsFake(async (items: any) =>
+        (await items).filter((item: any) => item.picked)
+      );
+
+    await extension.activate(context);
+    installMcpConfigsStub.resetHistory();
+    const install = (vscode.commands.registerCommand as sinon.SinonStub)
+      .getCalls()
+      .find((call) => call.args[0] === "vscode-abl-mcp.installMcpConfig")!.args[1];
+    await install();
+
+    assert.strictEqual(showQuickPick.calledOnce, true);
+    assert.deepStrictEqual(installMcpConfigsStub.firstCall.args[0].clients, ["claude"]);
+    assert.strictEqual(installMcpConfigsStub.firstCall.args[0].auto, undefined);
+  });
+
+  test("Install Config command writes nothing when the quick pick is cancelled", async () => {
+    sinon.stub(vscode.window, "showQuickPick").resolves(undefined);
+
+    await extension.activate(context);
+    installMcpConfigsStub.resetHistory();
+    const install = (vscode.commands.registerCommand as sinon.SinonStub)
+      .getCalls()
+      .find((call) => call.args[0] === "vscode-abl-mcp.installMcpConfig")!.args[1];
+    await install();
+
+    assert.strictEqual(installMcpConfigsStub.called, false);
+  });
+
+  test("autoStart=never keeps the server off", async () => {
+    settings.autoStart = "never";
+
+    await extension.activate(context);
+
+    assert.strictEqual(serverConstructorStub.called, false);
+  });
+
+  test("autoStart=folder starts the server for a single open folder", async () => {
+    settings.autoStart = "folder";
+
+    await extension.activate(context);
+
+    assert.strictEqual(mockMCPServer.start.calledOnce, true);
+  });
+
+  test("A saved per-workspace toggle overrides autoStart", async () => {
+    settings.autoStart = "always";
+    context.workspaceState.get = (key: string) =>
+      key === "mcpServerEnabled" ? false : undefined;
+
+    await extension.activate(context);
+
+    assert.strictEqual(serverConstructorStub.called, false);
+  });
+
+  test("Toggling saves the choice for this workspace, not globally", async () => {
+    settings.autoStart = "never";
+    const workspaceUpdate = sinon.stub().resolves();
+    const globalUpdate = sinon.stub().resolves();
+    context.workspaceState.update = workspaceUpdate;
+    context.globalState.update = globalUpdate;
+
+    await extension.activate(context);
+    const toggle = (vscode.commands.registerCommand as sinon.SinonStub)
+      .getCalls()
+      .find((call) => call.args[0] === "vscode-abl-mcp.toggleServer")!.args[1];
+    await toggle();
+
+    assert.strictEqual(workspaceUpdate.calledWith("mcpServerEnabled", true), true);
+    assert.strictEqual(globalUpdate.called, false);
+    assert.strictEqual(mockMCPServer.start.calledOnce, true);
   });
 
   test("A config write failure does not stop the server from starting", async () => {
