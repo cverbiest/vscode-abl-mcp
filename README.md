@@ -60,6 +60,20 @@ If both are enabled, the **Install Config** command prefers the pipe transport.
   - Parameters:
     - `path` (optional): Path of the file to process. Defaults to the active editor.
 
+The following language server tools are only available with OpenEdge ABL extension **1.39.2 or later**; with older versions they are not listed.
+
+- **start_language_server_abl**: Starts the ABL language server, or restarts it if it is already running.
+
+- **stop_language_server_abl**: Stops the ABL language server.
+
+- **restart_language_server_abl**: Restarts the ABL language server — use after changing the build mode or `openedge-project.json`, or when compile results look stale.
+
+- **set_build_mode_abl**: Changes the ABL build mode (`abl.buildMode`).
+
+  - Parameters:
+    - `mode`: `everything`, `classes`, `modified` or `none`.
+    - `restart` (optional): Restart the language server after changing the mode.
+
 ## Client Configuration
 
 The **VsCode ABL MCP: Install Config for Claude Code, Codex CLI, Gemini CLI** command asks which clients to set up (Claude Code: `.mcp.json`, Codex CLI: `.codex/config.toml`, Gemini CLI: `.gemini/settings.json`) and writes project-local config for them, using whichever transport is enabled. The clients selected in `autoCreateMcpConfig` are preselected; with none selected, all three are.

@@ -6,6 +6,16 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-12 (pre-release)
+
+### Added
+
+- Language server control MCP tools, bridging the Language Model tools added in vscode-abl 1.39.2: `start_language_server_abl`, `stop_language_server_abl`, `restart_language_server_abl` and `set_build_mode_abl` (`mode`: `everything`, `classes`, `modified`, `none`; optional `restart`). They are only registered when vscode-abl 1.39.2 or later is installed; the other tools still work from 1.33.7.
+
+### Changed
+
+- When an ABL tool fails because the language server is stopped ("Client is not running"), the error now says so and how to start it, instead of pointing at the extension version.
+
 ## [0.5.0] - 2026-10-17 (pre-release)
 
 ### Added

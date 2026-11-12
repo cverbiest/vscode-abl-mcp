@@ -78,6 +78,15 @@ async function invokeAblLmTool(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (/client is not running/i.test(message)) {
+      const startHint = supportsLanguageServerTools()
+        ? "Start it with the start_language_server_abl tool."
+        : 'Start it from VS Code with the "Restart Language Server" command (abl.restart.langserv).';
+      throw new Error(
+        `Invoking language model tool "${toolName}" failed: ${message}. ` +
+          `The ABL language server is not running. ${startHint}`
+      );
+    }
     const ablVersion = ablExtension.packageJSON?.version ?? "unknown";
     const registered =
       vscode.lm.tools.map((t) => t.name).join(", ") || "(none)";
@@ -216,6 +225,146 @@ async function runAblTool(
   }
 }
 
+/** First vscode-abl version that contributes the language server LM tools. */
+const LANGUAGE_SERVER_TOOLS_MIN_VERSION = "1.39.2";
+
+/** Compares major.minor.patch only (pre-release suffixes are ignored). */
+function isVersionAtLeast(version: string, minimum: string): boolean {
+  const parse = (v: string): number[] =>
+    v.split("-")[0].split(".").map((n) => parseInt(n, 10) || 0);
+  const a = parse(version);
+  const b = parse(minimum);
+  for (let i = 0; i < 3; i++) {
+    if ((a[i] ?? 0) !== (b[i] ?? 0)) {
+      return (a[i] ?? 0) > (b[i] ?? 0);
+    }
+  }
+  return true;
+}
+
+/**
+ * True when the installed ABL extension contributes the language server
+ * LM tools (abl_start/stop/restart_language_server, abl_set_build_mode).
+ * Checked on every registration; the server builds a fresh McpServer per
+ * request, so an updated ABL extension is picked up without a restart.
+ */
+function supportsLanguageServerTools(): boolean {
+  const version = vscode.extensions.getExtension(ABL_EXTENSION_ID)?.packageJSON
+    ?.version;
+  return (
+    typeof version === "string" &&
+    isVersionAtLeast(version, LANGUAGE_SERVER_TOOLS_MIN_VERSION)
+  );
+}
+
+/**
+ * Runs a Language Model tool that takes no file (language server control)
+ * and maps the outcome onto an MCP CallToolResult.
+ */
+async function runAblServerTool(
+  mcpToolName: string,
+  lmToolName: string,
+  input: Record<string, unknown>,
+  fallbackText: string
+): Promise<CallToolResult> {
+  logger.info(`[${mcpToolName}] Tool called`);
+  try {
+    const text = await invokeAblLmTool(lmToolName, input);
+    return { content: [{ type: "text", text: text || fallbackText }] };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`[${mcpToolName}] Error: ${errorMessage}`);
+    return { content: [{ type: "text", text: errorMessage }], isError: true };
+  }
+}
+
+/**
+ * Registers the language server control tools (start, stop, restart, set
+ * build mode). Only registered with vscode-abl 1.39.2+.
+ */
+function registerLanguageServerTools(server: McpServer): void {
+  if (!supportsLanguageServerTools()) {
+    logger.info(
+      `[registerAblTools] Language server tools not registered: they require ${ABL_EXTENSION_ID} ${LANGUAGE_SERVER_TOOLS_MIN_VERSION}+ (not installed or older).`
+    );
+    return;
+  }
+
+  server.registerTool(
+    "start_language_server_abl",
+    {
+      description: `Starts the ABL language server, or restarts it if it is already running.
+
+        WHEN TO USE: When the language server is not running (e.g. it was stopped). Requires vscode-abl ${LANGUAGE_SERVER_TOOLS_MIN_VERSION}+.`,
+      inputSchema: {},
+    },
+    async (): Promise<CallToolResult> =>
+      runAblServerTool(
+        "start_language_server_abl",
+        "abl_start_language_server",
+        {},
+        "ABL language server started."
+      )
+  );
+
+  server.registerTool(
+    "stop_language_server_abl",
+    {
+      description: `Stops the ABL language server. Requires vscode-abl ${LANGUAGE_SERVER_TOOLS_MIN_VERSION}+.`,
+      inputSchema: {},
+    },
+    async (): Promise<CallToolResult> =>
+      runAblServerTool(
+        "stop_language_server_abl",
+        "abl_stop_language_server",
+        {},
+        "ABL language server stopped."
+      )
+  );
+
+  server.registerTool(
+    "restart_language_server_abl",
+    {
+      description: `Restarts the ABL language server.
+
+        WHEN TO USE: After changing the build mode or openedge-project.json, or when compile results look stale. Requires vscode-abl ${LANGUAGE_SERVER_TOOLS_MIN_VERSION}+.`,
+      inputSchema: {},
+    },
+    async (): Promise<CallToolResult> =>
+      runAblServerTool(
+        "restart_language_server_abl",
+        "abl_restart_language_server",
+        {},
+        "ABL language server restarted."
+      )
+  );
+
+  server.registerTool(
+    "set_build_mode_abl",
+    {
+      description: `Changes the ABL build mode (abl.buildMode setting) of the language server. Use 'none' to disable automatic builds, for example when sources have to be compiled in a particular order. Optionally restarts the language server afterwards. Requires vscode-abl ${LANGUAGE_SERVER_TOOLS_MIN_VERSION}+.`,
+      inputSchema: {
+        mode: z
+          .enum(["everything", "classes", "modified", "none"])
+          .describe(
+            "everything = build all sources; classes = build only classes; modified = only build files modified after startup; none = never build"
+          ),
+        restart: z
+          .boolean()
+          .optional()
+          .describe("Restart the language server after changing the mode"),
+      },
+    },
+    async ({ mode, restart }): Promise<CallToolResult> =>
+      runAblServerTool(
+        "set_build_mode_abl",
+        "abl_set_build_mode",
+        { mode, restart: restart ?? false },
+        `ABL build mode set to '${mode}'.`
+      )
+  );
+}
+
 /**
  * Registers MCP ABL-related tools with the server.
  * These bridge to the Language Model tools contributed by the
@@ -225,9 +374,13 @@ async function runAblTool(
  * 1.36.0, so on older extension versions they fall back to driving the
  * extension's abl.preprocess/abl.generateDebugListing/abl.generateListing
  * commands and capturing the editor they open.
+ * The language server control tools (start/stop/restart, set build mode)
+ * are registered only when vscode-abl 1.39.2+ is installed.
  * @param server MCP server instance
  */
 export function registerAblTools(server: McpServer): void {
+  registerLanguageServerTools(server);
+
   server.registerTool(
     "compile_abl",
     {
