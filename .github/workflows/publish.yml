@@ -1,0 +1,81 @@
+# Publishes the extension to the VS Code Marketplace via Trusted Publishing
+# (OIDC) — no PAT or other secret is stored anywhere.
+#
+# Locks against anyone but the maintainer publishing:
+#  - manual trigger only (workflow_dispatch needs write access to the repo);
+#  - the job only runs for github.actor == cverbiest, on the default branch;
+#  - the `marketplace` environment requires the maintainer's approval before
+#    the job starts, and the Marketplace Trusted Publishing policy only accepts
+#    tokens from this repo + this workflow file + that environment.
+#
+# One-time setup and the release procedure: see "Release" in DEVELOPMENT.md.
+
+name: Publish to Marketplace
+
+on:
+  workflow_dispatch:
+    inputs:
+      pre-release:
+        description: Publish to the pre-release channel (odd minor version)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marketplace-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.actor == 'cverbiest' && github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    environment: marketplace
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4 # version from "packageManager" in package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Check version, channel and changelog
+        env:
+          PRE_RELEASE: ${{ inputs.pre-release }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const { version } = require("./package.json");
+            const minor = Number(version.split(".")[1]);
+            const pre = process.env.PRE_RELEASE === "true";
+            const fail = (m) => { console.error("::error::" + m); process.exit(1); };
+            if (!/^\d+\.\d+\.\d+$/.test(version)) fail(`version ${version} is not major.minor.patch`);
+            if (pre && minor % 2 === 0) fail(`pre-release requested but ${version} has an even minor (release)`);
+            if (!pre && minor % 2 === 1) fail(`release requested but ${version} has an odd minor (pre-release)`);
+            if (!fs.readFileSync("CHANGELOG.md", "utf8").includes(`## [${version}]`))
+              fail(`CHANGELOG.md has no "## [${version}]" section`);
+            console.log(`Publishing ${version} as ${pre ? "pre-release" : "release"}`);
+          '
+
+      - run: pnpm run lint
+
+      - run: pnpm run compile
+
+      - name: Package VSIX
+        run: pnpm exec vsce package --no-dependencies ${{ inputs.pre-release && '--pre-release' || '' }} --out extension.vsix
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: extension.vsix
+
+      - name: Publish
+        run: pnpm exec vsce publish --oidc --no-dependencies ${{ inputs.pre-release && '--pre-release' || '' }} --packagePath extension.vsix

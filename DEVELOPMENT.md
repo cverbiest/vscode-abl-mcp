@@ -163,7 +163,54 @@ without OpenEdge or the ABL extension installed.
    Use `pnpm exec` (not `pnpm dlx vsce`) so it runs the `@vscode/vsce`
    devDependency already pinned in `package.json` — `pnpm dlx vsce` fetches
    the old, deprecated, unscoped `vsce` package from npm instead.
-4. `pnpm exec vsce publish --no-dependencies` (publisher `cverbiest`).
+4. Commit and push to `develop`, then publish with the **Publish to
+   Marketplace** GitHub Actions workflow (see below): Actions tab → *Publish
+   to Marketplace* → **Run workflow** on `develop`, leave *pre-release*
+   unticked, then approve the `marketplace` deployment when it asks.
+5. Tag the published commit with the bare version (`git tag 0.6.0`, no `v`)
+   and push the tag.
+
+### Publishing workflow (Trusted Publishing)
+
+Publishing runs in [.github/workflows/publish.yml](.github/workflows/publish.yml)
+and authenticates to the Marketplace with **Trusted Publishing** (GitHub OIDC),
+not a Personal Access Token. Global Azure DevOps PATs are retired on
+2026-12-01, so the old `vsce publish` with `VSCE_PAT` no longer works. No
+secret is stored; each run gets a single-use token that expires after
+15 minutes. It costs nothing: Actions minutes are free on a public repo, and
+neither an Azure subscription nor an Azure DevOps organization is needed.
+
+The workflow re-checks what it can (version is `major.minor.patch`, odd/even
+minor matches the *pre-release* input, `CHANGELOG.md` has a `## [x.y.z]`
+section), runs lint and type-check, packages the VSIX (kept as a run
+artifact) and publishes exactly that file. It does **not** run `pnpm test`
+— that needs a VS Code instance; run it locally before publishing.
+
+Only the maintainer can publish:
+
+- **Manual trigger only** (`workflow_dispatch`); running it needs write access
+  to the repo. No push, tag or pull-request trigger.
+- The job is skipped unless `github.actor` is `cverbiest` and it runs on the
+  default branch.
+- The job uses the `marketplace` environment, which requires the maintainer's
+  approval before it starts.
+- The Marketplace policy only accepts tokens from this repo, this workflow
+  file and that environment, so a fork running the same workflow is rejected.
+
+One-time setup (already done once; redo only if the repo, workflow file name
+or environment changes):
+
+1. GitHub → repo **Settings → Environments → New environment** `marketplace`.
+   Tick **Required reviewers** and add `cverbiest`; under **Deployment
+   branches and tags** choose *Selected branches* and add `develop`.
+2. <https://marketplace.visualstudio.com/manage> → publisher `cverbiest` →
+   **Trusted Publishing → Create**: repository owner `cverbiest`, repository
+   `vscode-abl-mcp`, workflow `publish.yml`, environment `marketplace`.
+
+`--oidc` needs `@vscode/vsce` 4.1.0 or later.
+
+Fallback without GitHub: package locally as above and upload the VSIX by
+hand at <https://marketplace.visualstudio.com/manage> (extension → **Update**).
 
 ### Pre-release
 
@@ -181,14 +228,15 @@ VS Code recommends):
 The next release must have a **higher** version than every pre-release, or
 pre-release users never get moved back to it.
 
-Steps — same as a release, with `--pre-release` on both vsce calls:
+Steps — same as a release, with `--pre-release`:
 
 1. Bump `version` in `package.json` (odd minor). In `CHANGELOG.md` move the
    `## [Unreleased]` entries under `## [x.y.z] - YYYY-MM-DD (pre-release)`.
 2. `pnpm test`
 3. `pnpm exec vsce package --pre-release --no-dependencies` and smoke-test the
    VSIX: `code --install-extension vscode-abl-mcp-<version>.vsix`.
-4. `pnpm exec vsce publish --pre-release --no-dependencies`.
+4. Commit, push, and run the **Publish to Marketplace** workflow with
+   *pre-release* ticked (the default); approve the deployment. Then tag.
 
 Promoting to a release: bump to the next even minor (e.g. `0.5.2` → `0.6.0`),
 add a `CHANGELOG.md` entry that points back to the pre-release entries it
