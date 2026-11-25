@@ -48,7 +48,9 @@ suite("ABL Bridge Tools Test Suite", () => {
   }
 
   setup(() => {
-    getExtensionStub = sinon.stub().returns({ isActive: true });
+    getExtensionStub = sinon
+      .stub()
+      .returns({ isActive: true, packageJSON: { version: "1.39.3" } });
     invokeToolStub = sinon.stub().resolves({
       content: [new FakeTextPart("Compilation succeeded with no errors.")],
     });
@@ -65,6 +67,10 @@ suite("ABL Bridge Tools Test Suite", () => {
           { name: "abl_preprocess" },
           { name: "abl_debug_listing" },
           { name: "abl_listing" },
+          { name: "abl_start_language_server" },
+          { name: "abl_stop_language_server" },
+          { name: "abl_restart_language_server" },
+          { name: "abl_set_build_mode" },
         ],
         invokeTool: invokeToolStub,
       },
@@ -84,19 +90,85 @@ suite("ABL Bridge Tools Test Suite", () => {
     sinon.restore();
   });
 
-  test("Registers all six ABL bridge tools", () => {
+  const BASE_TOOLS = [
+    "check_syntax_abl",
+    "compile_abl",
+    "debug_listing_abl",
+    "listing_abl",
+    "preprocess_abl",
+    "xref_abl",
+  ];
+  const SERVER_TOOLS = [
+    "restart_language_server_abl",
+    "set_build_mode_abl",
+    "start_language_server_abl",
+    "stop_language_server_abl",
+  ];
+
+  test("Registers all ten ABL bridge tools with vscode-abl 1.39.2+", () => {
     assert.deepStrictEqual(
       [...tools.keys()].sort(),
-      [
-        "check_syntax_abl",
-        "compile_abl",
-        "debug_listing_abl",
-        "listing_abl",
-        "preprocess_abl",
-        "xref_abl",
-      ],
-      "Expected the six ABL bridge tools to be registered"
+      [...BASE_TOOLS, ...SERVER_TOOLS].sort()
     );
+  });
+
+  for (const [version, expectServerTools] of [
+    ["1.39.2", true],
+    ["1.39.2-pre", true],
+    ["1.40.0", true],
+    ["1.39.1", false],
+    ["1.33.7", false],
+  ] as const) {
+    test(`Language server tools ${expectServerTools ? "are" : "are not"} registered with vscode-abl ${version}`, () => {
+      getExtensionStub.returns({ isActive: true, packageJSON: { version } });
+      loadAndRegister();
+      assert.deepStrictEqual(
+        [...tools.keys()].sort(),
+        (expectServerTools ? [...BASE_TOOLS, ...SERVER_TOOLS] : BASE_TOOLS).sort()
+      );
+    });
+  }
+
+  test("Language server tools are not registered when vscode-abl is not installed", () => {
+    getExtensionStub.returns(undefined);
+    loadAndRegister();
+    assert.deepStrictEqual([...tools.keys()].sort(), BASE_TOOLS);
+  });
+
+  for (const [mcpTool, lmTool] of [
+    ["start_language_server_abl", "abl_start_language_server"],
+    ["stop_language_server_abl", "abl_stop_language_server"],
+    ["restart_language_server_abl", "abl_restart_language_server"],
+  ]) {
+    test(`${mcpTool} invokes the ${lmTool} LM tool and returns fallback text on empty output`, async () => {
+      invokeToolStub.resolves({ content: [] });
+      const result = await tools.get(mcpTool)!.handler({});
+
+      assert.strictEqual(result.isError, undefined);
+      assert.match(result.content[0].text, /ABL language server/);
+      const [toolName, options] = invokeToolStub.firstCall.args;
+      assert.strictEqual(toolName, lmTool);
+      assert.deepStrictEqual(options.input, {});
+    });
+  }
+
+  test("set_build_mode_abl forwards mode and restart", async () => {
+    await tools
+      .get("set_build_mode_abl")!
+      .handler({ mode: "none", restart: true });
+
+    const [toolName, options] = invokeToolStub.firstCall.args;
+    assert.strictEqual(toolName, "abl_set_build_mode");
+    assert.deepStrictEqual(options.input, { mode: "none", restart: true });
+  });
+
+  test("set_build_mode_abl defaults restart to false", async () => {
+    await tools.get("set_build_mode_abl")!.handler({ mode: "modified" });
+
+    assert.deepStrictEqual(invokeToolStub.firstCall.args[1].input, {
+      mode: "modified",
+      restart: false,
+    });
   });
 
   test("compile_abl invokes the abl_compile LM tool with the file URI", async () => {
@@ -244,6 +316,31 @@ suite("ABL Bridge Tools Test Suite", () => {
 
     assert.strictEqual(result.isError, true);
     assert.match(result.content[0].text, /not installed/);
+  });
+
+  test("Reports a stopped language server instead of a version problem", async () => {
+    invokeToolStub.rejects(new Error("Client is not running"));
+
+    const result = await tools
+      .get("compile_abl")!
+      .handler({ path: "C:\\work\\src\\order.p" });
+
+    assert.strictEqual(result.isError, true);
+    assert.match(result.content[0].text, /language server is not running/);
+    assert.match(result.content[0].text, /start_language_server_abl/);
+    assert.doesNotMatch(result.content[0].text, /1\.33\.7/);
+  });
+
+  test("Stopped language server hint points to the command on older ABL extensions", async () => {
+    getExtensionStub.returns({ isActive: true, packageJSON: { version: "1.38.0" } });
+    invokeToolStub.rejects(new Error("Client is not running"));
+
+    const result = await tools
+      .get("compile_abl")!
+      .handler({ path: "C:\\work\\src\\order.p" });
+
+    assert.match(result.content[0].text, /abl\.restart\.langserv/);
+    assert.doesNotMatch(result.content[0].text, /start_language_server_abl/);
   });
 
   test("Returns a diagnostic error when tool invocation fails (outdated ABL extension)", async () => {
