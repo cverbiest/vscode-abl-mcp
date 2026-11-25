@@ -36,11 +36,11 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4 # version from "packageManager" in package.json
+      - uses: pnpm/action-setup@v6 # version from "packageManager" in package.json
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -72,7 +72,7 @@ jobs:
       - name: Package VSIX
         run: pnpm exec vsce package --no-dependencies ${{ inputs.pre-release && '--pre-release' || '' }} --out extension.vsix
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: vsix
           path: extension.vsix
