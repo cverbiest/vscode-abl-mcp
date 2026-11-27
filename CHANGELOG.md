@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-27
+
+Release of the 0.5.x pre-releases; no changes since 0.5.1. Includes everything listed under [0.5.1](#051---2026-11-25-pre-release) and [0.5.0](#050---2026-11-25-pre-release) below.
+
 ## [0.5.1] - 2026-11-25 (pre-release)
 
 ### Added
